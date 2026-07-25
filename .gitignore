@@ -1,0 +1,15 @@
+# Local identities and workspace state
+.zenbin/
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
+
+# Python validation cache
+__pycache__/
+*.py[cod]
+
+# Harness-generated files and application symlink
+.pi-subagents/
+skills

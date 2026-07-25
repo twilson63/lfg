@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="An animation-driven deep dive into LFG, the bounded research, planning, implementation, review, and repair workflow for coding agents.">
+<meta name="keywords" content="LFG skill, coding agents, AI agent workflow, agent orchestration, implementation review, LLM judge, software engineering">
+<meta name="author" content="Hyper.io">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#0a0b14">
+<meta property="og:type" content="article">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="LFG — An Animated Deep Dive into the Agent Engineering Loop">
+<meta property="og:description" content="See how LFG turns a coding agent into a disciplined engineer through research, evidence-based planning, review gates, and bounded repair loops.">
+<meta property="og:site_name" content="Hyper.io">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="LFG — An Animated Deep Dive into the Agent Engineering Loop">
+<meta name="twitter:description" content="Research, plan, implement, judge, repair, and report: the bounded LFG workflow for coding agents.">
+<title>LFG — Lets Fucking Go · Animated Deep Dive</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "LFG — An Animated Deep Dive into the Agent Engineering Loop",
+  "description": "An animation-driven deep dive into LFG, a bounded research, planning, implementation, review, and repair workflow for coding agents.",
+  "author": { "@type": "Organization", "name": "Hyper.io", "url": "https://hyper.io" },
+  "about": ["AI agent workflows", "software engineering", "agent orchestration"],
+  "isBasedOn": "https://zenbin.org/p/lfg-skill-guide",
+  "inLanguage": "en"
+}
+</script>
+<style>
+  :root{
+    --bg:#0a0b14;
+    --bg-2:#11131f;
+    --panel:#161827;
+    --ink:#e8ecff;
+    --ink-dim:#9aa3c7;
+    --ink-faint:#5b6390;
+    --accent:#ff4d6d;
+    --accent-2:#7c5cff;
+    --accent-3:#2de2c6;
+    --warn:#ffb547;
+    --ok:#4ade80;
+    --line:rgba(255,255,255,.08);
+    --mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,monospace;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.55;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ambient gradient mesh */
+  .ambient{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden}
+  .blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:.35;animation:drift 22s ease-in-out infinite}
+  .blob.a{width:520px;height:520px;background:var(--accent);top:-10%;left:-10%}
+  .blob.b{width:600px;height:600px;background:var(--accent-2);top:30%;right:-15%;animation-delay:-7s}
+  .blob.c{width:480px;height:480px;background:var(--accent-3);bottom:-15%;left:30%;animation-delay:-14s;opacity:.22}
+  @keyframes drift{
+    0%,100%{transform:translate(0,0) scale(1)}
+    33%{transform:translate(60px,-40px) scale(1.08)}
+    66%{transform:translate(-40px,50px) scale(.94)}
+  }
+  .grid-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:48px 48px;
+    mask-image:radial-gradient(ellipse at 50% 0%,#000 30%,transparent 75%);
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+
+  /* ===== HERO ===== */
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;position:relative;padding:80px 0 60px}
+  .eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:24px;opacity:0;animation:fadeUp .8s .2s forwards}
+  .hero h1{
+    font-size:clamp(64px,13vw,180px);line-height:.88;font-weight:900;letter-spacing:-.04em;
+    background:linear-gradient(180deg,#fff 0%,#fff 40%,var(--accent) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    opacity:0;animation:fadeUp 1s .35s forwards;
+  }
+  .hero h1 .go{display:inline-block;transform:translateY(0);animation:none}
+  .hero .tag{font-size:clamp(22px,3.4vw,38px);font-weight:600;color:var(--ink);margin-top:18px;max-width:760px;opacity:0;animation:fadeUp .9s .6s forwards}
+  .hero .tag em{color:var(--accent-3);font-style:normal}
+  .hero .sub{margin-top:22px;color:var(--ink-dim);font-size:18px;max-width:620px;opacity:0;animation:fadeUp .9s .8s forwards}
+  .hero .badges{display:flex;gap:12px;flex-wrap:wrap;margin-top:36px;opacity:0;animation:fadeUp .9s 1s forwards}
+  .badge{font-family:var(--mono);font-size:12px;padding:7px 14px;border:1px solid var(--line);border-radius:999px;color:var(--ink-dim);background:rgba(255,255,255,.02)}
+  .badge b{color:var(--accent-3)}
+  .scroll-cue{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);color:var(--ink-faint);font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;opacity:0;animation:fadeUp 1s 1.4s forwards,bob 2.2s 2.4s infinite}
+  @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ===== SECTIONS ===== */
+  section{padding:110px 0;position:relative}
+  .sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:18px}
+  .sec-num{font-family:var(--mono);font-size:14px;color:var(--accent);letter-spacing:.2em}
+  .sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--accent),transparent)}
+  h2{font-size:clamp(34px,5vw,56px);font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  .lede{color:var(--ink-dim);font-size:19px;max-width:680px;margin-top:14px}
+  .reveal{opacity:0;transform:translateY(40px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:translateY(0)}
+
+  /* ===== THE PROBLEM / PRINCIPLES ===== */
+  .principles{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:48px}
+  .principle{
+    background:linear-gradient(180deg,var(--panel),rgba(22,24,39,.4));
+    border:1px solid var(--line);border-radius:18px;padding:30px;position:relative;overflow:hidden;
+    transition:transform .4s,border-color .4s;
+  }
+  .principle:hover{transform:translateY(-4px);border-color:var(--accent-2)}
+  .principle .pnum{position:absolute;top:18px;right:22px;font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+  .principle h3{font-size:22px;margin-bottom:8px;letter-spacing:-.01em}
+  .principle .tag-chip{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--accent-3);text-transform:uppercase;letter-spacing:.15em;margin-bottom:14px}
+  .principle p{color:var(--ink-dim);font-size:15.5px}
+  .principle .glow{position:absolute;width:200px;height:200px;border-radius:50%;background:var(--accent-2);filter:blur(80px);opacity:0;transition:opacity .5s;top:-60px;right:-60px}
+  .principle:hover .glow{opacity:.25}
+
+  /* ===== THE LOOP ORBIT ===== */
+  .loop-stage{margin-top:50px;position:relative;display:grid;grid-template-columns:1fr 320px;gap:40px;align-items:center}
+  .orbit{position:relative;width:100%;aspect-ratio:1;max-width:560px;margin:0 auto}
+  .orbit svg{width:100%;height:100%;display:block}
+  .ring{fill:none;stroke:var(--line);stroke-width:1.5}
+  .ring.active{stroke:var(--accent);stroke-width:2;filter:drop-shadow(0 0 8px var(--accent))}
+  .node{cursor:pointer}
+  .node circle{transition:all .4s;stroke-width:2}
+  .node.active circle{r:34;fill:var(--accent);stroke:var(--accent);filter:drop-shadow(0 0 16px var(--accent))}
+  .node text{font-family:var(--mono);font-size:11px;fill:var(--ink-dim);text-anchor:middle;font-weight:600;transition:fill .3s}
+  .node.active text{fill:#fff}
+  .node .lbl{font-family:var(--sans);font-size:13px;fill:var(--ink);font-weight:600;text-anchor:middle;opacity:.65;transition:opacity .3s}
+  .node.active .lbl{opacity:1}
+  .center-core{fill:url(#coreGrad)}
+  .pulse{transform-origin:center;animation:pulse 3s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.5;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}}
+  .comet{fill:var(--accent-3);filter:drop-shadow(0 0 10px var(--accent-3))}
+
+  .loop-panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px;min-height:340px;position:relative;overflow:hidden}
+  .loop-panel .phase-id{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.2em;margin-bottom:6px}
+  .loop-panel h3{font-size:26px;margin-bottom:12px;letter-spacing:-.01em}
+  .loop-panel p{color:var(--ink-dim);font-size:15px;margin-bottom:18px}
+  .loop-panel .meta{display:flex;gap:8px;flex-wrap:wrap}
+  .loop-panel .meta span{font-family:var(--mono);font-size:11px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;color:var(--ink-faint)}
+  .loop-panel .meta span.hot{color:var(--accent-3);border-color:rgba(45,226,198,.3)}
+  .progress-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--line)}
+  .progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-3));width:0%;transition:width .6s}
+
+  /* ===== TRIAGE ===== */
+  .triage-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
+  .triage-card{border-radius:20px;padding:34px;border:1px solid var(--line);position:relative;overflow:hidden}
+  .triage-card.full{background:linear-gradient(160deg,rgba(124,92,255,.15),rgba(22,24,39,.4))}
+  .triage-card.fast{background:linear-gradient(160deg,rgba(45,226,198,.12),rgba(22,24,39,.4))}
+  .triage-card .badge-mode{font-family:var(--mono);font-size:11px;letter-spacing:.2em;padding:6px 12px;border-radius:999px;text-transform:uppercase;display:inline-block;margin-bottom:16px}
+  .triage-card.full .badge-mode{background:rgba(124,92,255,.2);color:var(--accent-2)}
+  .triage-card.fast .badge-mode{background:rgba(45,226,198,.15);color:var(--accent-3)}
+  .triage-card h3{font-size:24px;margin-bottom:8px}
+  .triage-card p{color:var(--ink-dim);font-size:15px;margin-bottom:18px}
+  .triage-card ul{list-style:none}
+  .triage-card li{font-size:14px;padding:6px 0;color:var(--ink-dim);display:flex;gap:10px;align-items:flex-start}
+  .triage-card li::before{content:'›';color:var(--accent);font-weight:700}
+  .triage-card.full li::before{color:var(--accent-2)}
+  .triage-card.fast li::before{color:var(--accent-3)}
+
+  .decision-q{margin-top:36px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .decision-q table{width:100%;border-collapse:collapse;font-size:14px}
+  .decision-q th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .decision-q td{padding:12px;border-bottom:1px solid var(--line);color:var(--ink-dim)}
+  .decision-q td:first-child{color:var(--ink)}
+  .decision-q .yes{color:var(--ok);font-weight:600}
+  .decision-q .no{color:var(--accent);font-weight:600}
+  .decision-q .maybe{color:var(--warn);font-weight:600}
+
+  /* ===== COORDINATION ===== */
+  .coord-stage{margin-top:46px;display:grid;grid-template-columns:1.1fr 1fr;gap:32px;align-items:start}
+  .file-art{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .file-art .tabbar{display:flex;background:rgba(0,0,0,.25);border-bottom:1px solid var(--line);padding:0 16px}
+  .file-art .tab{font-family:var(--mono);font-size:12px;padding:14px 16px;color:var(--ink-faint);border-bottom:2px solid transparent;cursor:pointer;transition:all .25s}
+  .file-art .tab.active{color:var(--ink);border-bottom-color:var(--accent)}
+  .file-art .code{padding:22px;font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre;color:var(--ink-dim);min-height:340px}
+  .file-art .code .k{color:var(--accent)}
+  .file-art .code .s{color:var(--accent-3)}
+  .file-art .code .c{color:var(--ink-faint);font-style:italic}
+  .file-art .code .t{color:var(--warn)}
+  .file-art .code .row{display:block;opacity:0;transform:translateX(-8px);animation:rowIn .5s forwards}
+  @keyframes rowIn{to{opacity:1;transform:translateX(0)}}
+  .coord-copy{padding-top:10px}
+  .coord-copy h3{font-size:22px;margin-bottom:14px}
+  .coord-copy p{color:var(--ink-dim);font-size:15.5px;margin-bottom:16px}
+  .coord-copy .why{background:rgba(45,226,198,.06);border-left:3px solid var(--accent-3);padding:16px 18px;border-radius:0 10px 10px 0;font-size:14px;color:var(--ink-dim);margin-top:8px}
+  .coord-copy .why b{color:var(--accent-3)}
+
+  /* ===== SUBAGENTS ===== */
+  .roles{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:46px}
+  .role{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;position:relative;transition:transform .4s,border-color .4s}
+  .role:hover{transform:translateY(-4px);border-color:var(--accent)}
+  .role .ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px;font-size:20px}
+  .role.planner .ico{background:rgba(124,92,255,.15);color:var(--accent-2)}
+  .role.plan-gate .ico{background:rgba(255,77,109,.15);color:var(--accent)}
+  .role.impl-gate .ico{background:rgba(45,226,198,.15);color:var(--accent-3)}
+  .role h3{font-size:18px;margin-bottom:6px}
+  .role .stance{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+  .role p{color:var(--ink-dim);font-size:14px;margin-bottom:12px}
+  .role ul{list-style:none}
+  .role li{font-size:13px;color:var(--ink-dim);padding:3px 0;display:flex;gap:8px}
+  .role li::before{content:'—';color:var(--ink-faint)}
+
+  /* ===== JUDGE RUBRIC ===== */
+  .rubric{margin-top:46px;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .rubric-row{display:grid;grid-template-columns:180px 1fr 90px;align-items:center;padding:18px 24px;border-bottom:1px solid var(--line);gap:20px;transition:background .3s}
+  .rubric-row:last-child{border-bottom:none}
+  .rubric-row:hover{background:rgba(255,255,255,.02)}
+  .rubric-row .area{font-weight:600;font-size:15px}
+  .rubric-row .judg{color:var(--ink-dim);font-size:14px}
+  .rubric-row .score{font-family:var(--mono);font-size:13px;color:var(--accent-3);text-align:right}
+  .rubric-row .score.low{color:var(--accent)}
+
+  /* ===== TIMELINE ===== */
+  .timeline{margin-top:46px;position:relative;padding-left:30px}
+  .timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--accent),var(--accent-2),var(--accent-3));border-radius:2px}
+  .tl-item{position:relative;padding:0 0 38px 28px;opacity:0;transform:translateX(-12px);transition:all .7s}
+  .tl-item.in{opacity:1;transform:translateX(0)}
+  .tl-item::before{content:'';position:absolute;left:-30px;top:4px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(255,77,109,.12)}
+  .tl-item .tl-step{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase}
+  .tl-item h3{font-size:20px;margin:4px 0 8px}
+  .tl-item p{color:var(--ink-dim);font-size:15px;max-width:680px}
+  .tl-item .ck{display:inline-block;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--accent-3);padding:4px 10px;border:1px solid rgba(45,226,198,.25);border-radius:6px}
+
+  /* ===== COMMON ISSUES ===== */
+  .issues{margin-top:46px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .issue{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+  .issue .sym{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
+  .issue .cause{font-size:13.5px;color:var(--ink-dim);margin-top:6px}
+  .issue .fix{margin-top:10px;font-size:13.5px;color:var(--accent-3)}
+
+  /* ===== SHIFT CLOSER ===== */
+  .closer{padding:140px 0;text-align:center;position:relative}
+  .closer .kicker{font-family:var(--mono);font-size:13px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:24px}
+  .closer h2{font-size:clamp(40px,7vw,84px);font-weight:800;letter-spacing:-.03em;line-height:1;max-width:900px;margin:0 auto}
+  .closer h2 .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2),var(--accent-3));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .closer .triad{display:flex;justify-content:center;gap:40px;margin-top:50px;flex-wrap:wrap;font-family:var(--mono);font-size:14px;color:var(--ink-dim)}
+  .closer .triad div{padding:0 8px}
+  .closer .triad b{color:var(--ink);display:block;font-size:18px;margin-top:6px;font-family:var(--sans)}
+
+  footer{border-top:1px solid var(--line);padding:40px 0;color:var(--ink-faint);font-size:13px;text-align:center}
+  footer a{color:var(--accent-3);text-decoration:none}
+  footer a:hover,footer a:focus-visible{text-decoration:underline;text-underline-offset:3px}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+  }
+  @media (max-width:900px){
+    .principles,.triage-grid,.coord-stage,.issues{grid-template-columns:1fr}
+    .roles{grid-template-columns:1fr}
+    .loop-stage{grid-template-columns:1fr}
+    .rubric-row{grid-template-columns:1fr;gap:6px}
+    .rubric-row .score{text-align:left}
+  }
+</style>
+</head>
+<body>
+<div class="ambient"><div class="blob a"></div><div class="blob b"></div><div class="blob c"></div></div>
+<div class="grid-bg"></div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Skill · v3 · agent-agnostic</div>
+    <h1>LFG<span class="go"></span></h1>
+    <div class="tag">Lets <em>Fucking</em> Go — a bounded research → plan → implement → review loop that actually ships.</div>
+    <p class="sub">Turn an agent from a code monkey into a disciplined engineer: research the codebase, plan with evidence, implement step by step, review with a judge, and repair failures with fresh plans — across session boundaries.</p>
+    <div class="badges">
+      <span class="badge"><b>10</b> phases</span>
+      <span class="badge"><b>15</b> repair/replan iterations</span>
+      <span class="badge"><b>2</b> triage modes</span>
+      <span class="badge"><b>2</b> judge gates</span>
+      <span class="badge">file-coordinated · <b>no hidden chat state</b></span>
+    </div>
+  </div>
+  <div class="scroll-cue">scroll to descend ↓</div>
+</header>
+
+<!-- PROBLEM + PRINCIPLES -->
+<section id="problem">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">01</span><span class="sec-line"></span></div>
+    <h2 class="reveal">Most agent loops drift.</h2>
+    <p class="lede reveal">Vague goals, hidden state, no evidence a step passed. The agent writes code, runs tests, and calls it done — but the tests were never tied to the goal. When the session compacts, it replays the same mistakes from scratch.</p>
+
+    <div class="principles">
+      <div class="principle reveal"><div class="glow"></div><div class="pnum">P · 01</div><span class="tag-chip">Coordination</span><h3>Files, not chat history</h3><p>An HTML PRD and an HTML progress doc are the single source of truth. The agent, subagents, and human all inspect the same artifacts. Chat history is never the plan.</p></div>
+      <div class="principle reveal"><div class="glow"></div><div class="pnum">P · 02</div><span class="tag-chip">Discipline</span><h3>Acceptance criteria per step</h3><p>Every planned step ships with observable conditions and the evidence required to prove them — before any code is written.</p></div>
+      <div class="principle reveal"><div class="glow"></div><div class="pnum">P · 03</div><span class="tag-chip">Persistence</span><h3>Replan, don't just retry</h3><p>On failure, diagnose and write a better plan. The loop runs at least 15 repair/replan iterations before escalating.</p></div>
+      <div class="principle reveal"><div class="glow"></div><div class="pnum">P · 04</div><span class="tag-chip">Durability</span><h3>Session checkpoints</h3><p>Anchors at <code style="font-family:var(--mono);color:var(--accent-3)">begin → plan-approved → step-N-done → complete</code> survive compaction and re-entry.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- THE LOOP ORBIT -->
+<section id="loop">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">02</span><span class="sec-line"></span></div>
+    <h2 class="reveal">The loop: ten phases, two modes, one bounded repair pass.</h2>
+    <p class="lede reveal">Hover or tap a node. The comet traces the live execution order — research to report, with an evaluate/repair cycle spiraling inside.</p>
+
+    <div class="loop-stage">
+      <div class="orbit reveal">
+        <svg viewBox="0 0 600 600" id="orbitSvg">
+          <defs>
+            <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#ff4d6d" stop-opacity=".9"/>
+              <stop offset="60%" stop-color="#7c5cff" stop-opacity=".5"/>
+              <stop offset="100%" stop-color="#7c5cff" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="cometTail" x1="0" x2="1">
+              <stop offset="0%" stop-color="#2de2c6" stop-opacity="0"/>
+              <stop offset="100%" stop-color="#2de2c6" stop-opacity=".8"/>
+            </linearGradient>
+          </defs>
+          <!-- rings -->
+          <circle class="ring" cx="300" cy="300" r="240"/>
+          <circle class="ring" cx="300" cy="300" r="140" stroke-dasharray="3 6" opacity=".5"/>
+          <!-- center core -->
+          <circle class="center-core pulse" cx="300" cy="300" r="90"/>
+          <text x="300" y="294" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="#fff" opacity=".8" letter-spacing="2">LFG</text>
+          <text x="300" y="312" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="#9aa3c7" letter-spacing="2">CORE LOOP</text>
+          <!-- nodes injected by JS -->
+          <g id="nodes"></g>
+          <!-- comet -->
+          <circle class="comet" id="comet" r="5" cx="60" cy="300"/>
+        </svg>
+      </div>
+
+      <aside class="loop-panel reveal" id="loopPanel">
+        <div class="phase-id" id="phaseId">PHASE 01 / 10</div>
+        <h3 id="phaseTitle">Research</h3>
+        <p id="phaseBody">Inspect context: current branch, working tree, project instructions. Read the files relevant to the request. For the full loop, record a <code style="font-family:var(--mono);color:var(--accent-3)">task/begin</code> checkpoint.</p>
+        <div class="meta" id="phaseMeta">
+          <span class="hot">checkpoint: begin</span>
+          <span>read-only</span>
+          <span>context gathering</span>
+        </div>
+        <div class="progress-track"><div class="progress-bar" id="loopProgress"></div></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TRIAGE -->
+<section id="triage">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">03</span><span class="sec-line"></span></div>
+    <h2 class="reveal">Triage: full loop vs fast path.</h2>
+    <p class="lede reveal">Answer three questions before starting. If all say "Yes" → fast path. If any says "Maybe" or "No" → full loop. Security-sensitive boundaries never get the fast path.</p>
+
+    <div class="triage-grid">
+      <div class="triage-card full reveal">
+        <span class="badge-mode">Full Loop · default</span>
+        <h3>The ceremony</h3>
+        <p>Broad, ambiguous, design-sensitive, or security-sensitive work.</p>
+        <ul>
+          <li>PRD HTML + progress HTML written first</li>
+          <li>Planner subagent produces the plan</li>
+          <li>Plan-review gate before any code</li>
+          <li>Per-step acceptance criteria + evidence</li>
+          <li>Implementation-review gate after the diff</li>
+          <li>Checkpoints at begin → plan-approved → step-N-done → complete</li>
+        </ul>
+      </div>
+      <div class="triage-card fast reveal">
+        <span class="badge-mode">Fast Path · opt-in</span>
+        <h3>Just ship it</h3>
+        <p>Only when all three conditions are true.</p>
+        <ul>
+          <li>Change touches ≤30 lines across ≤3 files</li>
+          <li>No security / IPC / approval / path / browser / UX / copy / architecture surface</li>
+          <li>An obvious validation command exists</li>
+          <li>Skip PRD/progress HTML, skip planner</li>
+          <li>Make the change, run validation, self-review against the goal</li>
+          <li>Checkpoint/memory handoff optional</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="decision-q reveal">
+      <table>
+        <tr><th>Question</th><th>Full loop</th><th>Fast path</th></tr>
+        <tr><td>Touches ≤30 lines across ≤3 files?</td><td class="maybe">Maybe</td><td class="yes">Yes</td></tr>
+        <tr><td>No security / IPC / approval / path / browser surface?</td><td>—</td><td class="yes">Yes</td></tr>
+        <tr><td>No UX / copy / architecture impact?</td><td>—</td><td class="yes">Yes</td></tr>
+        <tr><td>Clear validation command exists?</td><td>—</td><td class="yes">Yes</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- COORDINATION -->
+<section id="coord">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">04</span><span class="sec-line"></span></div>
+    <h2 class="reveal">Coordination lives in files.</h2>
+    <p class="lede reveal">An HTML PRD and an HTML progress doc are the single source of truth — readable by agent, subagents, and humans, opening directly in a browser.</p>
+
+    <div class="coord-stage">
+      <div class="file-art reveal">
+        <div class="tabbar">
+          <div class="tab active" data-file="prd">docs/-prd.html</div>
+          <div class="tab" data-file="progress">docs/-progress.html</div>
+        </div>
+        <pre class="code" id="fileCode"></pre>
+      </div>
+      <div class="coord-copy reveal">
+        <h3>Why HTML, not Markdown</h3>
+        <p>Rendered HTML gives real structure — sections, tables, status chips, and links to changed files — and opens directly in a browser without a separate viewer. The PRD and progress docs double as a human-readable dashboard.</p>
+        <p>Markdown would collapse this to flat text. The HTML is self-contained: inline minimal CSS, no external scripts, no remote fetches, so it renders from <code style="font-family:var(--mono);color:var(--accent-3)">file://</code> and stays safe to share.</p>
+        <div class="why"><b>Never</b> rely on chat history for coordination. Copy subagent plans and reviews into the PRD or progress HTML explicitly.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUBAGENTS -->
+<section id="roles">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">05</span><span class="sec-line"></span></div>
+    <h2 class="reveal">Subagents are advisory critics.</h2>
+    <p class="lede reveal">Never unbounded autonomous owners. The parent stays in control; the planner proposes, the judges gate. Prefer <code style="font-family:var(--mono);color:var(--accent-3)">fork</code> context for reviewers so they judge a stable snapshot.</p>
+
+    <div class="roles">
+      <div class="role planner reveal">
+        <div class="ico">◎</div>
+        <h3>Planner</h3>
+        <div class="stance">read-only · fresh context · no edit</div>
+        <p>A skeptical product-minded architect, not a code generator. Produces a step-by-step plan with acceptance criteria and required evidence for every step.</p>
+        <ul>
+          <li>Restate definition + constraints</li>
+          <li>Evidence per criterion</li>
+          <li>Security/privacy risks + non-goals</li>
+          <li>Taste/originality criteria for design work</li>
+        </ul>
+      </div>
+      <div class="role plan-gate reveal">
+        <div class="ico">⌗</div>
+        <h3>Reviewer · Plan gate</h3>
+        <div class="stance">read-only · fork · strict critic</div>
+        <p>Reviews the PRD HTML before implementation. Confirms definition of done, goal coverage, research completeness, and that every step has acceptance criteria.</p>
+        <ul>
+          <li>Open questions answered or blocked</li>
+          <li>Validation commands present</li>
+          <li>Marks pass / fail / uncertain</li>
+          <li>Missing required item → block</li>
+        </ul>
+      </div>
+      <div class="role impl-gate reveal">
+        <div class="ico">✓</div>
+        <h3>Reviewer · Impl gate</h3>
+        <div class="stance">read-only · fork · reads diffs + runs validation</div>
+        <p>Reviews the uncommitted diff against the PRD. Evaluates each step separately against its acceptance criteria with evidence.</p>
+        <ul>
+          <li>Correctness · security · coverage</li>
+          <li>Taste/originality 1–5 scoring</li>
+          <li>&lt;4 on taste → repair loop</li>
+          <li>Returns findings only — no edits</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- JUDGE RUBRIC -->
+<section id="rubric">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">06</span><span class="sec-line"></span></div>
+    <h2 class="reveal">The LLM-as-judge rubric.</h2>
+    <p class="lede reveal">Every change is scored across eight areas. Unmet required criteria are blockers; taste or originality below 4 triggers a repair loop for design-sensitive work.</p>
+
+    <div class="rubric reveal">
+      <div class="rubric-row"><div class="area">Correctness</div><div class="judg">Does the change solve the stated problem without regressions?</div><div class="score">required</div></div>
+      <div class="rubric-row"><div class="area">Acceptance coverage</div><div class="judg">Does every planned criterion have evidence?</div><div class="score">required</div></div>
+      <div class="rubric-row"><div class="area">Security / privacy</div><div class="judg">Secrets, credentials, prompt contents, command output, approval-gated effects handled safely?</div><div class="score">required</div></div>
+      <div class="rubric-row"><div class="area">Simplicity</div><div class="judg">Cohesive, idiomatic, not over-engineered?</div><div class="score">required</div></div>
+      <div class="rubric-row"><div class="area">Taste</div><div class="judg">Polished, restrained, product-appropriate UX/API/copy/architecture?</div><div class="score">1–5 · &lt;4 = repair</div></div>
+      <div class="rubric-row"><div class="area">Originality</div><div class="judg">Avoids generic cookie-cutter output while staying consistent with the project?</div><div class="score">1–5 · &lt;4 = repair</div></div>
+      <div class="rubric-row"><div class="area">Maintainability</div><div class="judg">Will future contributors understand and extend it?</div><div class="score">required</div></div>
+      <div class="rubric-row"><div class="area">Validation</div><div class="judg">Were the right tests / checks / manual verifications run?</div><div class="score">required</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOW TIMELINE -->
+<section id="workflow">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">07</span><span class="sec-line"></span></div>
+    <h2 class="reveal">The workflow, step by step.</h2>
+    <p class="lede reveal">From context inspection to final report — each step leaves a checkpoint the next session can recover from.</p>
+
+    <div class="timeline" id="timeline">
+      <div class="tl-item"><div class="tl-step">Phase 01</div><h3>Inspect context</h3><p>Check branch + working tree. Preserve unrelated user changes. Read project instructions and relevant files. Record a <code style="font-family:var(--mono);color:var(--accent-3)">task/begin</code> checkpoint for the full loop.</p><span class="ck">checkpoint: begin</span></div>
+      <div class="tl-item"><div class="tl-step">Phase 02</div><h3>Define the concept first</h3><p>Before writing code, define the core term in this project's language: what it means here, what it explicitly doesn't, privacy/security implications, measurable success criteria.</p></div>
+      <div class="tl-item"><div class="tl-step">Phase 03</div><h3>Write or update the plan</h3><p>Invoke the planner subagent. Create PRD + progress HTML. Each step ships with acceptance criteria and required evidence. Reviewer reviews the plan before implementation.</p><span class="ck">checkpoint: plan-approved</span></div>
+      <div class="tl-item"><div class="tl-step">Phase 04</div><h3>Coordinate</h3><p>PRD HTML and progress HTML become the single source of truth. Both files live in the project unless the user asks for temporary artifacts.</p></div>
+      <div class="tl-item"><div class="tl-step">Phase 05</div><h3>Implement in focused step loops</h3><p>For each step: read PRD + progress, implement only the current step, gather evidence, update progress HTML, compare against criteria. Advance only when criteria are met.</p><span class="ck">checkpoint: step-N-done</span></div>
+      <div class="tl-item"><div class="tl-step">Phase 06</div><h3>Evaluate</h3><p>If any criterion is unmet, mark the step <code style="font-family:var(--mono);color:var(--warn)">repairing</code>, repair, update progress HTML, repeat the same step.</p></div>
+      <div class="tl-item"><div class="tl-step">Phase 07</div><h3>Repeat / advance · bounded repair</h3><p>On failure, don't blindly retry. Diagnose, write a better plan, re-attempt. Run at least 15 repair/replan iterations across the whole task before escalating. Escalate earlier only on true blockers.</p><span class="ck">≥15 replans before escalate</span></div>
+      <div class="tl-item"><div class="tl-step">Phase 08</div><h3>Judge</h3><p>Two gates: plan gate (before implementation) and implementation gate (after the diff). Judge marks each criterion pass/fail/uncertain with evidence. Taste &lt;4 → repair.</p></div>
+      <div class="tl-item"><div class="tl-step">Phase 09</div><h3>Repair</h3><p>Produce a better plan for the failing step — revised approach, smaller sub-step, or new acceptance evidence. Each iteration carries a fresh plan, not a repeat.</p></div>
+      <div class="tl-item"><div class="tl-step">Phase 10</div><h3>Report</h3><p>Definition used, implementation summary, files changed, validation run + result, reviewer findings addressed, residual risks. Write a memory file capturing decisions, non-goals, risks.</p><span class="ck">checkpoint: complete</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- COMMON ISSUES -->
+<section id="issues">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="sec-num">08</span><span class="sec-line"></span></div>
+    <h2 class="reveal">Common issues &amp; fixes.</h2>
+
+    <div class="issues">
+      <div class="issue reveal"><div><div class="sym">Symptom</div>Loop never terminates</div><div><div class="cause">No acceptance criteria defined before implementation.</div><div class="fix">→ Define criteria before starting implementation.</div></div></div>
+      <div class="issue reveal"><div><div class="sym">Symptom</div>Same failure repeats</div><div><div class="cause">Not replanning, just retrying.</div><div class="fix">→ Diagnose, write a better plan, try again.</div></div></div>
+      <div class="issue reveal"><div><div class="sym">Symptom</div>Subagent ignores directives</div><div><div class="cause">Wrong agent selected or directives not passed.</div><div class="fix">→ Choose agent with matching traits, pass role directives in task.</div></div></div>
+      <div class="issue reveal"><div><div class="sym">Symptom</div>Progress HTML not updating</div><div><div class="cause">Relying on chat state.</div><div class="fix">→ Copy subagent outputs into progress HTML explicitly.</div></div></div>
+      <div class="issue reveal"><div><div class="sym">Symptom</div>Taste score below 4</div><div><div class="cause">Generic / cookie-cutter solution.</div><div class="fix">→ Trigger repair loop, ask for a more original approach.</div></div></div>
+      <div class="issue reveal"><div><div class="sym">Symptom</div>State lost on compaction</div><div><div class="cause">No checkpoints recorded.</div><div class="fix">→ Mirror checkpoints into docs/-handoff.md if native checkpointing unavailable.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- THE SHIFT -->
+<section class="closer">
+  <div class="wrap">
+    <div class="kicker reveal">The important shift</div>
+    <h2 class="reveal">Your harness becomes the operator.<br>The loop becomes the workforce.<br><span class="grad">LFG is the line between them.</span></h2>
+    <div class="triad reveal">
+      <div>research<b>define</b></div>
+      <div>plan<b>review</b></div>
+      <div>implement<b>repair</b></div>
+      <div>judge<b>report</b></div>
+    </div>
+  </div>
+</section>
+
+<footer aria-label="Page information">
+  <div class="wrap">
+    Source: <a href="https://zenbin.org/p/lfg-skill-guide" rel="noopener noreferrer">zenbin.org/p/lfg-skill-guide</a> · agent-agnostic · v3 · animated deep dive · made with <a href="https://hyper.io" rel="noopener noreferrer">Hyper.io</a>
+  </div>
+</footer>
+
+<script>
+/* ===== Reveal on scroll ===== */
+const io = new IntersectionObserver((es)=>{
+  es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.15});
+document.querySelectorAll('.reveal,.tl-item').forEach(el=>io.observe(el));
+
+/* ===== Loop orbit ===== */
+const phases = [
+  {n:'01',t:'Research',body:'Inspect context: current branch, working tree, project instructions. Read files relevant to the request. Record a task/begin checkpoint.',meta:['checkpoint: begin','read-only','context gathering'],hot:[0]},
+  {n:'02',t:'Define',body:'Define the core concept in this project\'s language — what it means here, what it explicitly doesn\'t, privacy/security implications, measurable success criteria.',meta:['definition','non-goals','success criteria']},
+  {n:'03',t:'Plan',body:'Invoke the planner subagent. Produce a step-by-step plan with acceptance criteria and required evidence for every step. Create PRD + progress HTML.',meta:['planner subagent','acceptance criteria','evidence']},
+  {n:'04',t:'Coordinate',body:'PRD HTML and progress HTML become the single source of truth. The agent, subagents, and human all inspect the same artifacts.',meta:['docs/-prd.html','docs/-progress.html','file-coordinated']},
+  {n:'05',t:'Implement',body:'For each step: read PRD + progress, implement only the current step, gather evidence, update progress HTML, compare against criteria.',meta:['focused step loops','exact edits','no build/ output'],hot:[0]},
+  {n:'06',t:'Evaluate',body:'Compare the result against every acceptance criterion. If any is unmet, mark the step repairing and repeat the same step.',meta:['criterion check','pass/fail/uncertain'],hot:[0]},
+  {n:'07',t:'Repeat / advance',body:'Advance only after criteria are met. Bounded repair: at least 15 replan iterations across the task before escalating. Escalate earlier only on true blockers.',meta:['≥15 replans','escalate on blockers'],hot:[0]},
+  {n:'08',t:'Judge',body:'Two gates: plan gate before implementation, implementation gate after the diff. LLM-as-judge scores correctness, security, simplicity, taste, originality.',meta:['plan gate','impl gate','1–5 taste'],hot:[1]},
+  {n:'09',t:'Repair',body:'Diagnose the failure, update progress HTML with the diagnosis, produce a better plan for that step, re-attempt. Each iteration carries a fresh plan, not a repeat.',meta:['diagnose','fresh plan','re-attempt']},
+  {n:'10',t:'Report',body:'Definition used, files changed, validation run + result, reviewer findings addressed, residual risks. Write a memory file. Record task/complete.',meta:['checkpoint: complete','memory write','residual risks'],hot:[0]},
+];
+
+const svg = document.getElementById('orbitSvg');
+const nodesG = document.getElementById('nodes');
+const cx=300, cy=300, R=240;
+const nodeEls=[];
+phases.forEach((p,i)=>{
+  const ang = (-90 + i*(360/phases.length)) * Math.PI/180;
+  const x = cx + R*Math.cos(ang);
+  const y = cy + R*Math.sin(ang);
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','node');
+  g.setAttribute('data-i', i);
+  g.innerHTML = `
+    <circle cx="${x}" cy="${y}" r="26" fill="#161827" stroke="#2a2d44"/>
+    <text x="${x}" y="${y-2}" dy="4">${p.n}</text>
+    <text class="lbl" x="${x}" y="${y+38}">${p.t.split(' ')[0].toLowerCase()}</text>
+  `;
+  // position label radially outward
+  const lx = cx + (R+34)*Math.cos(ang);
+  const ly = cy + (R+34)*Math.sin(ang) + 4;
+  g.querySelector('.lbl').setAttribute('x', lx);
+  g.querySelector('.lbl').setAttribute('y', ly);
+  g.querySelector('.lbl').textContent = p.t.length>12 ? p.t.split(' ')[0] : p.t.toLowerCase();
+  nodesG.appendChild(g);
+  nodeEls.push(g);
+  g.addEventListener('mouseenter', ()=>setPhase(i));
+  g.addEventListener('click', ()=>setPhase(i));
+});
+
+const phaseId = document.getElementById('phaseId');
+const phaseTitle = document.getElementById('phaseTitle');
+const phaseBody = document.getElementById('phaseBody');
+const phaseMeta = document.getElementById('phaseMeta');
+const loopProgress = document.getElementById('loopProgress');
+let activePhase = 0;
+
+function setPhase(i){
+  activePhase = i;
+  const p = phases[i];
+  nodeEls.forEach((el,j)=> el.classList.toggle('active', j===i));
+  phaseId.textContent = `PHASE ${p.n} / 10`;
+  phaseTitle.textContent = p.t;
+  phaseBody.textContent = p.body;
+  phaseMeta.innerHTML = p.meta.map((m,k)=>`<span class="${p.hot&&p.hot.includes(k)?'hot':''}">${m}</span>`).join('');
+  loopProgress.style.width = ((i+1)/phases.length*100)+'%';
+}
+setPhase(0);
+
+/* comet auto-cycle */
+const comet = document.getElementById('comet');
+let cometI = 0;
+function tickComet(){
+  cometI = (cometI+1) % phases.length;
+  const ang = (-90 + cometI*(360/phases.length)) * Math.PI/180;
+  const x = cx + R*Math.cos(ang);
+  const y = cy + R*Math.sin(ang);
+  comet.setAttribute('cx', x);
+  comet.setAttribute('cy', y);
+  setPhase(cometI);
+}
+let auto = setInterval(tickComet, 2600);
+
+/* pause auto on hover of panel/orbit */
+['loopPanel','orbitSvg'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('mouseenter', ()=>{ clearInterval(auto); auto=null; });
+  el.addEventListener('mouseleave', ()=>{ if(!auto) auto = setInterval(tickComet, 2600); });
+});
+
+/* ===== File coordination tabs ===== */
+const files = {
+  prd: [
+    `<span class="c">&lt;!-- PRD: add-auth-to-api --&gt;</span>`,
+    `<span class="k">&lt;h1&gt;</span>Add authentication to existing API<span class="k">&lt;/h1&gt;</span>`,
+    `<span class="k">&lt;p&gt;</span><span class="t">&lt;strong&gt;</span>Definition:<span class="t">&lt;/strong&gt;</span> Project uses`,
+    `  JWT bearer tokens signed by the auth service at <span class="s">/auth</span>.<span class="k">&lt;/p&gt;</span>`,
+    `<span class="k">&lt;p&gt;</span><span class="t">&lt;strong&gt;</span>Non-goals:<span class="t">&lt;/strong&gt;</span> OAuth, web sessions, MFA.<span class="k">&lt;/p&gt;</span>`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Constraints<span class="k">&lt;/h2&gt;</span>`,
+    `<span class="k">&lt;ul&gt;</span><span class="k">&lt;li&gt;</span>Never log token payloads.<span class="k">&lt;/li&gt;</span><span class="k">&lt;/ul&gt;</span>`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Plan<span class="k">&lt;/h2&gt;</span>`,
+    `<span class="k">&lt;table&gt;</span>`,
+    ` <span class="k">&lt;tr&gt;</span><span class="k">&lt;th&gt;</span>Step<span class="k">&lt;/th&gt;</span><span class="k">&lt;th&gt;</span>Acceptance<span class="k">&lt;/th&gt;</span><span class="k">&lt;th&gt;</span>Evidence<span class="k">&lt;/th&gt;</span><span class="k">&lt;/tr&gt;</span>`,
+    ` <span class="k">&lt;tr&gt;</span><span class="k">&lt;td&gt;</span>1 middleware<span class="k">&lt;/td&gt;</span>`,
+    `   <span class="k">&lt;td&gt;</span>rejects missing header<span class="k">&lt;/td&gt;</span>`,
+    `   <span class="k">&lt;td&gt;</span><span class="s">curl</span> returns 401<span class="k">&lt;/td&gt;</span><span class="k">&lt;/tr&gt;</span>`,
+    ` <span class="k">&lt;tr&gt;</span><span class="k">&lt;td&gt;</span>2 verify<span class="k">&lt;/td&gt;</span>`,
+    `   <span class="k">&lt;td&gt;</span>valid token → req.user<span class="k">&lt;/td&gt;</span>`,
+    `   <span class="k">&lt;td&gt;</span>unit test + log scrub<span class="k">&lt;/td&gt;</span><span class="k">&lt;/tr&gt;</span>`,
+    `<span class="k">&lt;/table&gt;</span>`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Validation<span class="k">&lt;/h2&gt;</span>`,
+    `<span class="k">&lt;pre&gt;</span><span class="s">npm test -- auth</span><span class="k">&lt;/pre&gt;</span>`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Definition of done<span class="k">&lt;/h2&gt;</span>`,
+    `<span class="k">&lt;ul&gt;</span><span class="k">&lt;li&gt;</span>All protected routes require valid JWT<span class="k">&lt;/li&gt;</span><span class="k">&lt;/ul&gt;</span>`,
+  ].join('\n'),
+  progress: [
+    `<span class="c">&lt;!-- live progress log --&gt;</span>`,
+    `<span class="k">&lt;h1&gt;</span>Progress · add-auth-to-api<span class="k">&lt;/h1&gt;</span>`,
+    `<span class="k">&lt;p&gt;</span>Status: <span class="s">in-progress</span><span class="k">&lt;/p&gt;</span>`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Step 1 · middleware<span class="k">&lt;/h2&gt;</span>`,
+    ` <span class="c">// acceptance: rejects missing header</span>`,
+    ` evidence: <span class="s">curl /api/me</span> → 401 ✓`,
+    ` status: <span class="s">pass</span>`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Step 2 · verify<span class="k">&lt;/h2&gt;</span>`,
+    ` <span class="c">// acceptance: valid token → req.user</span>`,
+    ` evidence: unit test `+`<span class="s">auth.test.js</span> → green ✓`,
+    ` status: <span class="s">pass</span>`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Step 3 · log scrub<span class="k">&lt;/h2&gt;</span>`,
+    ` <span class="c">// acceptance: no token in logs</span>`,
+    ` status: <span class="t">repairing</span> · attempt 2`,
+    ` diagnosis: token printed in error handler`,
+    ` new plan: redact before logger.error`,
+    ``,
+    `<span class="k">&lt;h2&gt;</span>Judge<span class="k">&lt;/h2&gt;</span>`,
+    ` taste: 4 · originality: 4 · security: pass`,
+  ].join('\n')
+};
+
+const fileCode = document.getElementById('fileCode');
+function renderFile(name){
+  fileCode.innerHTML = '';
+  files[name].split('\n').forEach((line,i)=>{
+    const span = document.createElement('span');
+    span.className='row';
+    span.style.animationDelay = (i*0.03)+'s';
+    span.innerHTML = line || '&nbsp;';
+    fileCode.appendChild(span);
+  });
+}
+renderFile('prd');
+
+document.querySelectorAll('.file-art .tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.file-art .tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    renderFile(tab.dataset.file);
+  });
+});
+
+/* re-render progress when it scrolls into view for the typewriter feel */
+const coordSec = document.getElementById('coord');
+const tabObserver = new IntersectionObserver((es)=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      const active = document.querySelector('.file-art .tab.active').dataset.file;
+      renderFile(active);
+    }
+  });
+},{threshold:.3});
+tabObserver.observe(coordSec);
+</script>
+</body>
+</html>
