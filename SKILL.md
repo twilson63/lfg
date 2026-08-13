@@ -245,6 +245,34 @@ Each planned step should use this shape:
 
 Do not start implementation until the planned steps have acceptance criteria, the plan has a definition of done, goal requirements and open questions are addressed, both the PRD HTML and progress HTML exist, and the plan-review pass has no blocking findings. (For lightweight changes, see Triage: use the fast path instead of this full gate.) When the plan-review gate passes, record a `task/plan-approved` tape anchor (or a `plan-approved` line in the handoff file) so re-entry can resume from implementation.
 
+### 3a. Plan the PR — context-boundary slices (required for multi-layer work)
+
+For any epic that spans more than one context boundary (e.g. `data` / `service` / `api` / `admin` / `integration` in the MCDS-033/034/035 Funds Movement template at https://gist.github.com/twilson63/1b9bb838da806958cc1a11579c9d4a5d), add this sub-step to the plan before implementation. It makes the PR submittable as full slices with reviewable diffs, deterministic commits, and test gates that automated pr-review can verify.
+
+**When to slice vs. collapse.** Slice by boundary when the change touches ≥2 context boundaries or ≥4 files. Collapse to one E2E slice/PR only if all are true: `<4 files`, `<2 days`, single facility/code scope, no freeze/balance precedence branch, `≤3 devs` and no parallel-review benefit. If collapsed, add `Skip linked slices — size justifies single PR` to the PR description and keep all 4 DoD checklists in that one PR.
+
+**Slice table (one row per boundary).** Every plan and every PR description must include:
+
+| Slice | Boundary | Branch | Conventional scope | Depends on | Definition of Done (DoD) | Unit gate | E2E gate |
+|---|---|---|---|---|---|---|---|
+| 1 | `data` + `service` (blocks 2–3) | `<scope>-<id>-1-data` e.g. `mcds-033-1-data` | `feat(data)` / `feat(service)` | — | Prisma model/migration + Zod schemas in `packages/types` (`z.infer` only); `data/` only place with `prisma` (`{ tx? }`); `services/` owns `withTransaction(SERIALIZABLE, P2034×3+jitter)` + freeze/balance checks; errors `OrderValidationError` / `InsufficientFundsError` / `TransactionConcurrencyError(409)` | `data/*.test.ts` mocked Prisma `tx` + `services/*.test.ts` retries | `pnpm check-types` + `pnpm --filter @repo/db --filter @repo/types test` |
+| 2 | `api` routes | `<scope>-<id>-2-api` | `feat(api)` | Slice 1 | Thin handlers `validateInput → service → respond → c.json(201|200)`; no Prisma; `requireJwtSession → loadUserRoles → requirePermission('<perm>')` (+ `requirePinVerification`); `authenticatedRateLimit` + `requireFacilityAccess`; `utils/error-handler.ts` mapping (Zod 400, `PIN_REQUIRED 403`, `P2002→409`) | Hono `app.request` mocked service + `testErrorHandler` shape/status | `pnpm --filter @repo/api test` + `turbo build` per-layer gate |
+| 3 | `admin` / kiosk UI | `<scope>-<id>-3-ui` | `feat(admin)` or `feat(ui)` | Slice 1 (+ types) | Mantine `useForm+zodResolver(Schema)` → TanStack Query hooks; `usePermissions().hasPermission` + wildcard + `System Admin` bypass; freeze/block disabled states surfaced | Vitest `jsdom` + `setupFiles` for Mantine, form + disabled-state tests | `pnpm --filter @repo/admin test` |
+| 4 | `integration` / seed / audit | `<scope>-<id>-4-int` | `chore(seed)` / `feat(audit)` | Slices 1–3 | `prisma/seeds/*` + `facilities.ts` for facility codes; `pnpm db:seed` + `db:reset` green; route E2E `POST /admin/facility/:code/... →201` + cents check + `GET /logs` audit entry; `docs/` checked | — | Full E2E: `POST` via curl/Hono + balance cents + audit log under `view:facility:logs` |
+
+For other domains, keep the same 4-row shape and rename boundaries (e.g. `db` / `core` / `api` / `web` / `int`).
+
+**Conventional Commits (required).** Every commit on a slice branch must satisfy `^ (feat|fix|docs|chore|refactor|test|build|ci)(\(.+\))?!?: .+` . Use: `feat(data): …` for Slice 1, `feat(api): …` for Slice 2, `feat(admin): …` for Slice 3, `chore(seed): …` or `feat(audit): …` for Slice 4. Add `BREAKING CHANGE:` footer when API/Zod changes. Add `Closes #<slice-issue>` and `Part of #<epic>` footers. The PR title itself must be a Conventional Commit (e.g. `feat(funds): MCDS-033 slice 1 — data/service`).
+
+**ASD-STE100 for PR documentation (required).** Write the PR title, summary, and slice descriptions in ASD Simplified Technical English: max 25 words per sentence, one instruction per sentence, active voice only, use only approved verbs (`do`, `make`, `use`, `check`, `send`, `show`, `write`, `update`, `test`, `verify`), no idioms or phrasal verbs, no contractions, define every abbreviation on first use. Short sentences are mandatory. Example: `This PR adds the data slice. It creates the JournalEntry model. It validates funds in cents. It uses withTransaction. It writes audit entries.` Provide a `Before STE / After STE` note in the PR when the summary exceeds 25 words.
+
+**Testability (required for automated pr-review).** Each slice must list its commands and evidence path in the PR:
+- Unit: command + file (e.g. `pnpm --filter @repo/db test -- data/transfer.test.ts` → `test-results/unit-slice-1.xml`)
+- E2E: command + log excerpt + assertion (e.g. `curl -X POST /admin/facility/1147/transfer → 201 + balance 12345 cents + GET /logs contains JournalEntry`)
+- Gates must run in CI per slice: `python3 scripts/validate_skill.py`, `python3 scripts/validate_pr_slices.py`, `pytest -q` (unit), `pytest -m e2e` or `pnpm test:e2e` (E2E). A slice with no green unit gate and no green E2E gate cannot merge — the automated reviewer must mark it `fail`.
+
+**Automated pr-review checklist (must appear in `.github/pull_request_template.md`).** The template must include checkable boxes for: `title is Conventional Commit`, `each slice has branch + scope + DoD`, `STE sentence length ≤25`, `no Prisma in routes/services (grep "from '@/utils/prisma'" only in data/)`, `no regex in prod`, `cents-only DB`, `withTransaction + P2034 retry`, `error-handler mapping`, `unit gate green`, `E2E gate green`, `docs/planning updated`.
+
 ### 4. Implement in focused step loops
 
 For each planned step:
@@ -281,6 +309,8 @@ If no suitable subagent exists, perform the same checklist manually.
 Run the project's canonical build/lint/check command — the architecture-equivalent of `npm run check` (e.g. `cargo check`, `go build ./...`, `pytest -q`, `gleam check`, `npm test`). Discover it from `package.json` scripts, the project's AGENTS.md, or the nearest task runner. For smaller changes, run targeted syntax/smoke checks first; for larger ones, run the full suite. Fix findings and re-run the failing validation until green.
 
 Example (HyperDesk): `npm run check` then `npm test`.
+
+For sliced PRs (see §3a), run both gates: `python3 scripts/validate_skill.py` and `python3 scripts/validate_pr_slices.py` plus per-slice unit (`pytest -q` or `pnpm --filter <slice> test`) and E2E (`pytest -m e2e` or `pnpm test:e2e`). The automated pr-review must fail if any slice has no unit evidence or no E2E evidence.
 
 ### 7. Final report
 

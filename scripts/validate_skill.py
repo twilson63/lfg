@@ -35,6 +35,31 @@ for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", ".gitigno
 if (root / ".zenbin").exists() and ".zenbin/" not in (root / ".gitignore").read_text(encoding="utf-8"):
     errors.append(".zenbin/ must be ignored.")
 
+# PR slice planning invariants (LFG §3a) — required template and skill section
+pr_template = root / ".github" / "pull_request_template.md"
+if not pr_template.is_file():
+    errors.append("Missing required PR template: .github/pull_request_template.md (LFG §3a).")
+else:
+    pr_text = pr_template.read_text(encoding="utf-8")
+    for needle in (
+        "Context-Boundary Slices",
+        "Conventional Commits",
+        "ASD-STE100",
+        "Unit tests",
+        "E2E",
+        "Automated Review Checklist",
+    ):
+        if needle.lower() not in pr_text.lower():
+            errors.append(f"PR template missing required section: {needle}.")
+
+if "context-boundary slices" not in text.lower():
+    errors.append("SKILL.md missing required section: context-boundary slices (LFG §3a).")
+if "Conventional Commits" not in text or "ASD-STE100" not in text:
+    errors.append("SKILL.md PR slice section must mention Conventional Commits and ASD-STE100.")
+
+if not (root / "docs" / "planning" / "epic-slice-template.md").is_file():
+    errors.append("Missing required slice template: docs/planning/epic-slice-template.md.")
+
 if errors:
     print("LFG skill validation failed:", *[f"- {error}" for error in errors], sep="\n")
     sys.exit(1)
