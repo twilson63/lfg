@@ -1,1 +1,93 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>LFG skill repository progress</title><style>body{font:16px/1.55 system-ui;max-width:920px;margin:40px auto;padding:0 20px;color:#172033}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d7dce5;padding:10px;text-align:left;vertical-align:top}th{background:#f3f6fa}.complete{color:#17663a;font-weight:700}code{background:#f3f6fa;padding:2px 4px}</style><body><h1>LFG skill repository progress</h1><p>Current status: <strong class="complete">complete</strong></p><table><tr><th>Step</th><th>Status</th><th>Evidence / notes</th></tr><tr><td>1. Scaffold</td><td>pass</td><td>Root skill, README, license, contribution/security guides, ignore rules, validator, CI, documentation index, and reference material are present.</td></tr><tr><td>2. Author</td><td>pass</td><td><code>SKILL.md</code> has portable YAML frontmatter; README uses the canonical install command and explains the telemetry-based listing caveat.</td></tr><tr><td>3. Validate</td><td>pass</td><td><code>python3 scripts/validate_skill.py</code> passed; <code>npx --yes skills add twilson63/lfg --list</code> cloned the public repo and found exactly one skill: <code>lfg</code>.</td></tr><tr><td>4. Publish</td><td>pass</td><td>Public repository created and pushed: <a href="https://github.com/twilson63/lfg">github.com/twilson63/lfg</a>; default branch <code>main</code>.</td></tr><tr><td>5. Review</td><td>pass</td><td>Manual implementation judge (subagent runtime unavailable): correctness pass; acceptance coverage pass; security/privacy pass (identity, harness artifacts, and app symlink ignored); simplicity pass; maintainability pass; validation pass; taste 4/5; originality 4/5. No blocking fixes.</td></tr></table><h2>Risks</h2><ul><li>skills.sh has no manual listing endpoint; visibility/ranking follows real anonymous Skills CLI installs and may not be immediate.</li><li>Repository publishing is an external side effect and will use the authenticated <code>twilson63</code> GitHub account.</li></ul><h2>Checkpoint log</h2><ul><li>2026-06-06 — begin — lfg-skill-repo — planned — PRD and progress files created.</li><li>2026-06-06 — step-1-done — scaffold — pass — repository structure and ignore rules created.</li><li>2026-06-06 — step-2-done — author — pass — canonical root skill and public documentation created.</li><li>2026-06-06 — step-3-done — validate — pass — validator and official CLI discovery succeeded.</li><li>2026-06-06 — step-4-done — publish — pass — public GitHub repository created and pushed.</li><li>2026-06-06 — complete — lfg-skill-repo — pass — manual implementation review passed with no blockers.</li></ul></body></html>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>LFG skill repository progress</title><style>body{font:16px/1.55 system-ui;max-width:920px;margin:40px auto;padding:0 20px;color:#172033}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d7dce5;padding:10px;text-align:left;vertical-align:top}th{background:#f3f6fa}.complete{color:#17663a;font-weight:700}code{background:#f3f6fa;padding:2px 4px}.meta{color:#5b6472;font-size:13px}nav a{margin-right:12px}canvas{width:100%;height:420px;background:#fbfcfe;border:1px solid #d7dce5;border-radius:8px}.legend{font-size:13px;color:#5b6472}</style><body>
+<h1>LFG skill repository progress</h1>
+<p class="meta">Created: <code>2026-06-06T09:00:00Z</code> · Last updated: <code>2026-08-15T09:10:00Z</code> · updated on each change</p>
+<nav class="meta"><a href="./lfg-skill-repo-prd.html">→ PRD</a><a href="./lfg-skill-repo-handoff.md">→ handoff</a></nav>
+<p>Current status: <strong class="complete">complete</strong></p>
+<h2>Flow</h2>
+<p class="legend">Force-directed (gravity) layout of the step/repair loop. The completed state is highlighted. Drag a node to re-settle.</p>
+<canvas id="flow" width="900" height="420"></canvas>
+<table><tr><th>Step</th><th>Status</th><th>Evidence / notes</th></tr><tr><td>1. Scaffold</td><td>pass</td><td>Root skill, README, license, contribution/security guides, ignore rules, validator, CI, documentation index, and reference material are present.</td></tr><tr><td>2. Author</td><td>pass</td><td><code>SKILL.md</code> has portable YAML frontmatter; README uses the canonical install command and explains the telemetry-based listing caveat.</td></tr><tr><td>3. Validate</td><td>pass</td><td><code>python3 scripts/validate_skill.py</code> passed; <code>npx --yes skills add twilson63/lfg --list</code> cloned the public repo and found exactly one skill: <code>lfg</code>.</td></tr><tr><td>4. Publish</td><td>pass</td><td>Public repository created and pushed: <a href="https://github.com/twilson63/lfg">github.com/twilson63/lfg</a>; default branch <code>main</code>.</td></tr><tr><td>5. Review</td><td>pass</td><td>Manual implementation judge (subagent runtime unavailable): correctness pass; acceptance coverage pass; security/privacy pass (identity, harness artifacts, and app symlink ignored); simplicity pass; maintainability pass; validation pass; taste 4/5; originality 4/5. No blocking fixes.</td></tr></table><h2>Risks</h2><ul><li>skills.sh has no manual listing endpoint; visibility/ranking follows real anonymous Skills CLI installs and may not be immediate.</li><li>Repository publishing is an external side effect and will use the authenticated <code>twilson63</code> GitHub account.</li></ul><h2>Checkpoint log</h2><ul><li>2026-06-06 — begin — lfg-skill-repo — planned — PRD and progress files created.</li><li>2026-06-06 — step-1-done — scaffold — pass — repository structure and ignore rules created.</li><li>2026-06-06 — step-2-done — author — pass — canonical root skill and public documentation created.</li><li>2026-06-06 — step-3-done — validate — pass — validator and official CLI discovery succeeded.</li><li>2026-06-06 — step-4-done — publish — pass — public GitHub repository created and pushed.</li><li>2026-06-06 — complete — lfg-skill-repo — pass — manual implementation review passed with no blockers.</li></ul>
+<script>
+(function () {
+  var nodes = [
+    { id: "scaffold",    label: "Scaffold",  x: 120, y: 120, r: 34 },
+    { id: "author",      label: "Author",    x: 300, y: 90,  r: 30 },
+    { id: "validate",    label: "Validate",  x: 480, y: 120, r: 30 },
+    { id: "publish",     label: "Publish",   x: 640, y: 200, r: 36 },
+    { id: "review",      label: "Review",    x: 640, y: 320, r: 34 },
+    { id: "repair",      label: "Repair",    x: 470, y: 360, r: 30 },
+    { id: "complete",    label: "Complete",  x: 260, y: 300, r: 34, active: true }
+  ];
+  var edges = [
+    ["scaffold","author"], ["author","validate"], ["validate","publish"],
+    ["publish","review"], ["review","repair"], ["repair","validate"],
+    ["review","complete"]
+  ];
+  var byId = {}; nodes.forEach(function (n) { byId[n.id] = n; });
+  var W = 900, H = 420, k = 120, repel = 9000, spring = 0.02, center = 0.008;
+  var temp = 1.0;
+  function step () {
+    nodes.forEach(function (n) { n.fx = 0; n.fy = 0; });
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < nodes.length; j++) {
+        var a = nodes[i], b = nodes[j];
+        var dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 0.01;
+        var f = repel / (d * d);
+        a.fx += dx / d * f; a.fy += dy / d * f;
+        b.fx -= dx / d * f; b.fy -= dy / d * f;
+      }
+    }
+    edges.forEach(function (e) {
+      var a = byId[e[0]], b = byId[e[1]];
+      var dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01;
+      var f = (d - k) * spring;
+      a.fx += dx / d * f; a.fy += dy / d * f;
+      b.fx -= dx / d * f; b.fy -= dy / d * f;
+    });
+    nodes.forEach(function (n) {
+      n.fx += (W / 2 - n.x) * center; n.fy += (H / 2 - n.y) * center;
+      n.x += n.fx * temp; n.y += n.fy * temp;
+      n.x = Math.max(n.r, Math.min(W - n.r, n.x));
+      n.y = Math.max(n.r, Math.min(H - n.r, n.y));
+    });
+    temp *= 0.98;
+  }
+  var canvas = document.getElementById("flow");
+  var ctx = canvas.getContext("2d");
+  var dragging = null;
+  function draw () {
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = "#9aa6b8"; ctx.lineWidth = 1.5;
+    edges.forEach(function (e) {
+      var a = byId[e[0]], b = byId[e[1]];
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    });
+    nodes.forEach(function (n) {
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = n.active ? "#17663a" : "#e7f7ed"; ctx.fill();
+      ctx.strokeStyle = "#17663a"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = n.active ? "#ffffff" : "#172033"; ctx.font = "13px system-ui";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(n.label, n.x, n.y);
+    });
+  }
+  function loop () { if (temp > 0.02 || dragging) { step(); } draw(); requestAnimationFrame(loop); }
+  canvas.addEventListener("mousedown", function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) * (W / rect.width);
+    var my = (e.clientY - rect.top) * (H / rect.height);
+    for (var i = 0; i < nodes.length; i++) {
+      if (Math.hypot(nodes[i].x - mx, nodes[i].y - my) <= nodes[i].r) { dragging = nodes[i]; temp = 0.6; break; }
+    }
+  });
+  canvas.addEventListener("mousemove", function (e) {
+    if (!dragging) return;
+    var rect = canvas.getBoundingClientRect();
+    dragging.x = (e.clientX - rect.left) * (W / rect.width);
+    dragging.y = (e.clientY - rect.top) * (H / rect.height);
+  });
+  canvas.addEventListener("mouseup", function () { dragging = null; temp = 0.6; });
+  loop();
+})();
+</script>
+</body></html>

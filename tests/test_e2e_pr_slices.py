@@ -2,6 +2,7 @@
 import subprocess
 import tempfile
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ def test_e2e_validation_gates_pass():
     assert r2.returncode == 0, r2.stdout + r2.stderr
     assert "passed" in r2.stdout.lower()
 
-    r3 = run("python3 -m pytest tests/test_pr_slices.py -q")
+    r3 = run(f"{sys.executable} -m pytest tests/test_pr_slices.py -q")
     assert r3.returncode == 0, r3.stdout + r3.stderr
 
 @pytest.mark.e2e

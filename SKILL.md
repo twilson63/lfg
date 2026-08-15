@@ -1,6 +1,6 @@
 ---
 name: lfg
-version: "1.0.0"
+version: "1.1.0"
 description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks.
 tags:
   - agent-workflows
@@ -47,7 +47,13 @@ Run the full PRD HTML + progress HTML + planner + dual reviewer loop for **broad
 
 Prefer file-based coordination over hidden conversational state. The parent agent, planner subagent, reviewer subagent, and human should all be able to inspect the same artifacts.
 
-**Why HTML (not Markdown).** Rendered HTML gives real structure — sections, tables, status chips, and links to changed files — and opens directly in a browser without a separate viewer, so the PRD and progress docs double as a human-readable dashboard. Markdown would collapse this to flat text. Keep the HTML well-formed and self-contained (inline minimal CSS, no external scripts, no remote fetches) so it renders from `file://` and stays safe to share. Escape any code/output snippets inside `<code>`/`<pre>` to avoid breaking markup.
+**Why HTML (not Markdown).** Rendered HTML gives real structure — sections, tables, status chips, links to related docs, and interactive diagrams — and opens directly in a browser without a separate viewer, so the PRD and progress docs double as a human-readable dashboard. Markdown would collapse this to flat text. Keep the HTML well-formed and self-contained: inline CSS and inline JavaScript are fine, but **no external scripts, no external stylesheets, and no remote fetches** — the file must render fully from `file://` with no network. Escape any code/output snippets inside `<code>`/`<pre>` to avoid breaking markup.
+
+**Every artifact must carry three coordination features:**
+
+1. **Date/time.** A visible header with `created` and `last updated` timestamps (ISO 8601, e.g. `2026-08-15T09:03:00Z`), plus a small "updated on each change" note. Update `last updated` whenever the document changes; keep `created` fixed. This is what lets a re-entering session and a human see how stale a doc is.
+2. **Cross-links.** Link the related docs to each other so the set is navigable: PRD ↔ progress ↔ handoff, and to any reference material. Use relative links (`[progress](./<task-slug>-progress.html)`) so they resolve from `file://`. The progress doc should link back to the PRD; the PRD should link forward to the progress log; both should link to the handoff file if one exists.
+3. **Flow diagram.** Render the workflow as an HTML5 `<canvas>` with a **force-directed (gravity) layout** — nodes auto-arrange via a physics simulation and settle into a stable arrangement, with the loop edges (e.g. review → repair → implement) pulling the graph into a cycle. See the Flow diagram section below for the required implementation.
 
 Default artifact names:
 
@@ -60,6 +66,8 @@ Use another directory if the repo has a better convention, but keep both files i
 
 The PRD document should be human-readable HTML, not only Markdown, so it can be opened directly in a browser. It should include:
 
+- **date/time header** — `created` and `last updated` ISO 8601 timestamps;
+- **cross-links** — to the progress log, handoff file, and any reference material (relative links);
 - task title and short summary;
 - project-specific definition of the core concept/problem;
 - goals and non-goals;
@@ -69,12 +77,15 @@ The PRD document should be human-readable HTML, not only Markdown, so it can be 
 - evidence required for every acceptance criterion;
 - validation commands;
 - LLM-as-judge rubric, including taste and originality where relevant;
+- **flow diagram** — a force-directed `<canvas>` of the workflow (see Flow diagram);
 - final overall acceptance criteria.
 
 ### Progress HTML requirements
 
 The progress document should be the running coordination log. Update it after each step and after every reviewer/judge pass. It should include:
 
+- **date/time header** — `created` and `last updated` ISO 8601 timestamps (update `last updated` on every change);
+- **cross-links** — back to the PRD, to the handoff file, and to any reference material (relative links);
 - current status: `planned`, `in-progress`, `blocked`, `repairing`, `escalated`, or `complete`;
 - checklist of planned steps;
 - for each step: acceptance criteria, evidence gathered, pass/fail/uncertain status, and repair attempts;
@@ -82,9 +93,29 @@ The progress document should be the running coordination log. Update it after ea
 - validation commands and results;
 - reviewer/judge findings;
 - taste/originality scores when relevant;
+- **flow diagram** — a force-directed `<canvas>` of the step/repair loop (see Flow diagram);
 - residual risks and final outcome.
 
 Do not rely on chat history alone for coordination. If a subagent produces a plan or review, copy the important decisions/findings into the PRD or progress HTML.
+
+### Flow diagram (force-directed / gravity layout)
+
+The workflow is not a flat list — it is a loop with feedback edges (review → repair → implement, evaluate → repair, and so on). Render it as an HTML5 `<canvas>` whose nodes **auto-arrange via a force-directed (gravity) simulation** and settle into a stable layout, instead of hand-placing boxes. This makes the loop's cycles visible at a glance and stays self-contained (inline JS, no external script, no remote fetch).
+
+**Required implementation.** Inline a small self-contained force simulation (a Fruchterman–Reingold-style layout is sufficient — no library). It must:
+
+- take a `nodes` list (id, label, radius) and an `edges` list (pairs of node ids);
+- apply three forces each tick: **repulsion** between all node pairs (inverse-square), **spring** pull along edges toward an ideal length, and **center gravity** pulling the graph toward the canvas center;
+- integrate with a cooling `temp` (multiply by ~0.98 each tick) so motion decays; stop the loop when `temp` falls below ~0.02 (or when a node is being dragged);
+- clamp every node inside the canvas bounds so nothing escapes;
+- draw edges then nodes (circle + centered label) each frame via `requestAnimationFrame`;
+- support **drag-to-re-settle**: on `mousedown` grab the nearest node, on `mousemove` move it, on `mouseup` release and re-heat `temp` so the graph re-settles.
+
+**Verified baseline.** The reference implementation in `docs/samples/force-directed-flow.html` settles the LFG loop (8 nodes, 9 edges, canvas 900×520) in ~259 steps to **zero overlaps**, all nodes in-bounds, and stable (sub-pixel drift). Port that algorithm rather than inventing a new one; it is the known-good baseline.
+
+**What to diagram.** In the PRD, diagram the full loop: research → define → plan → implement → evaluate → review → report, with the repair and review feedback edges. In the progress doc, diagram the current step/repair loop and mark the active step (e.g. a distinct fill color) so the human sees where the loop is. Keep node labels short; the simulation handles placement.
+
+**Pitfalls.** Do not pin node positions — let the simulation place them (that is the whole point of the gravity layout). Do not add external scripts or CDN links; the diagram must work from `file://` with no network. Keep the simulation cheap (≤ ~12 nodes) so it settles in well under a second; for larger graphs, raise `temp` decay or cap iterations.
 
 ## Session durability (tape and memory)
 

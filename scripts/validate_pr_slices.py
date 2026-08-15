@@ -71,8 +71,10 @@ if not cc_re.match(sample):
 
 # 5. ASD-STE100: max 25 words per sentence in PR Summary example
 # Check that template contains instruction about 25 words
-if "25 words" not in skill or "25 words" not in pr_path.read_text(encoding="utf-8") if pr_path.is_file() else True:
-    errors.append("STE 25-words rule missing")
+if "25 words" not in skill:
+    errors.append("STE 25-words rule missing in SKILL.md")
+if pr_path.is_file() and "25 words" not in pr_path.read_text(encoding="utf-8"):
+    errors.append("STE 25-words rule missing in PR template")
 
 if errors:
     print("PR slice validation failed:", *[f"- {e}" for e in errors], sep="\n")

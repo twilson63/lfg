@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LFG force-directed flow diagram — sample</title>
+<style>
+  body{font:16px/1.55 system-ui;max-width:920px;margin:40px auto;padding:0 20px;color:#172033}
+  h1,h2{line-height:1.2}
+  .meta{color:#5b6472;font-size:13px}
+  canvas{width:100%;height:520px;background:#fbfcfe;border:1px solid #d7dce5;border-radius:8px}
+  .legend{font-size:13px;color:#5b6472;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>LFG loop — force-directed flow</h1>
+<p class="meta">Rendered from file:// with inline JS only. Drag nodes to re-settle.</p>
+<canvas id="flow" width="900" height="520"></canvas>
+<p class="legend">Nodes auto-arrange via a gravity/force simulation. Loop edges (review → repair → implement) pull the graph into a cycle.</p>
+
+<script>
+(function () {
+  // ---- Data: the LFG bounded loop ----
+  const nodes = [
+    { id: "research",  label: "Research",  x: 120, y: 120, r: 34 },
+    { id: "define",    label: "Define",    x: 300, y: 90,  r: 30 },
+    { id: "plan",      label: "Plan",      x: 480, y: 120, r: 30 },
+    { id: "implement", label: "Implement", x: 640, y: 200, r: 36 },
+    { id: "evaluate",  label: "Evaluate",  x: 640, y: 340, r: 34 },
+    { id: "repair",    label: "Repair",    x: 470, y: 400, r: 30 },
+    { id: "review",    label: "Review",    x: 300, y: 360, r: 30 },
+    { id: "report",    label: "Report",    x: 130, y: 300, r: 30 },
+  ];
+  const edges = [
+    ["research","define"], ["define","plan"], ["plan","implement"],
+    ["implement","evaluate"], ["evaluate","repair"], ["repair","implement"],
+    ["evaluate","review"], ["review","implement"], ["review","report"],
+  ];
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+
+  // ---- Force simulation (Fruchterman-Reingold style, self-contained) ----
+  const W = 900, H = 520;
+  const k = 120;          // ideal edge length
+  const repel = 9000;     // node-node repulsion
+  const spring = 0.02;    // edge spring
+  const center = 0.008;   // pull to center
+  const damping = 0.85;
+  let temp = 1.0;
+
+  function step() {
+    for (const n of nodes) { n.fx = 0; n.fy = 0; }
+    // repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let d = Math.hypot(dx, dy) || 0.01;
+        const f = repel / (d * d);
+        a.fx += (dx / d) * f; a.fy += (dy / d) * f;
+        b.fx -= (dx / d) * f; b.fy -= (dy / d) * f;
+      }
+    }
+    // springs (edges)
+    for (const [s, t] of edges) {
+      const a = byId[s], b = byId[t];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d = Math.hypot(dx, dy) || 0.01;
+      const f = (d - k) * spring;
+      a.fx += (dx / d) * f; a.fy += (dy / d) * f;
+      b.fx -= (dx / d) * f; b.fy -= (dy / d) * f;
+    }
+    // center gravity + integrate
+    for (const n of nodes) {
+      n.fx += (W / 2 - n.x) * center;
+      n.fy += (H / 2 - n.y) * center;
+      n.x += n.fx * temp; n.y += n.fy * temp;
+      n.x = Math.max(n.r, Math.min(W - n.r, n.x));
+      n.y = Math.max(n.r, Math.min(H - n.r, n.y));
+    }
+    temp *= 0.985;
+  }
+
+  const canvas = document.getElementById("flow");
+  const ctx = canvas.getContext("2d");
+  let dragging = null;
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    // edges
+    ctx.strokeStyle = "#9aa6b8"; ctx.lineWidth = 1.5;
+    for (const [s, t] of edges) {
+      const a = byId[s], b = byId[t];
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    // nodes
+    for (const n of nodes) {
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = "#e7f7ed"; ctx.fill();
+      ctx.strokeStyle = "#17663a"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#172033"; ctx.font = "13px system-ui";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(n.label, n.x, n.y);
+    }
+  }
+
+  function loop() {
+    if (temp > 0.02 || dragging) { step(); }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // interaction: drag a node, release to re-settle
+  canvas.addEventListener("mousedown", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+    for (const n of nodes) {
+      if (Math.hypot(n.x - mx, n.y - my) <= n.r) { dragging = n; temp = 0.6; break; }
+    }
+  });
+  canvas.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const rect = canvas.getBoundingClientRect();
+    dragging.x = (e.clientX - rect.left) * (W / rect.width);
+    dragging.y = (e.clientY - rect.top) * (H / rect.height);
+  });
+  canvas.addEventListener("mouseup", () => { dragging = null; temp = 0.6; });
+
+  loop();
+  // expose for headless testing
+  window.__lfg = { nodes, edges, step, get temp() { return temp; } };
+})();
+</script>
+</body>
+</html>

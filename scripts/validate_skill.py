@@ -60,6 +60,34 @@ if "Conventional Commits" not in text or "ASD-STE100" not in text:
 if not (root / "docs" / "planning" / "epic-slice-template.md").is_file():
     errors.append("Missing required slice template: docs/planning/epic-slice-template.md.")
 
+# HTML coordination features (LFG File coordination) — required in SKILL.md
+for needle in ("date/time", "cross-link", "force-directed", "flow diagram", "inline JavaScript"):
+    if needle.lower() not in text.lower():
+        errors.append(f"SKILL.md missing HTML coordination feature: {needle}.")
+
+# HTML coordination features (LFG File coordination) — the example artifacts must
+# actually implement them, not just be described in SKILL.md. This is the real
+# regression guard: a future agent that drops a feature from a generated doc
+# will fail here, not just when the requirement is deleted from the skill.
+import re as _re
+for artifact in ("lfg-skill-repo-prd.html", "lfg-skill-repo-progress.html"):
+    path = root / "docs" / "development" / artifact
+    if not path.is_file():
+        errors.append(f"Missing example artifact: {artifact}.")
+        continue
+    html = path.read_text(encoding="utf-8")
+    if not _re.search(r"Last updated:\s*<code>\d{4}-\d{2}-\d{2}", html):
+        errors.append(f"{artifact} missing ISO 8601 'last updated' timestamp.")
+    if "Last updated" not in html and "created" not in html.lower():
+        errors.append(f"{artifact} missing date/time header.")
+    if "href=\"./" not in html:
+        errors.append(f"{artifact} missing relative cross-links.")
+    if "<canvas" not in html or "requestAnimationFrame" not in html:
+        errors.append(f"{artifact} missing force-directed <canvas> flow diagram.")
+    # self-contained: no external scripts / stylesheets / remote fetches
+    if _re.search(r"<script[^>]+src=|<link[^>]+href=|https?://[^\"'\s]+\.js", html):
+        errors.append(f"{artifact} must be self-contained (no external scripts/remote fetches).")
+
 if errors:
     print("LFG skill validation failed:", *[f"- {error}" for error in errors], sep="\n")
     sys.exit(1)
