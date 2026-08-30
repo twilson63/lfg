@@ -2,8 +2,9 @@
 """Validate PR slice planning invariants for automated pr-review.
 
 Checks:
-- PR template has 4 slice rows, commit scopes, DoD, and gates
-- SKILL.md §3a section present with Conventional Commits + ASD-STE100
+- SKILL.md teaches boundary slices, gates, DoD, Conventional Commits, handoff (LFG 2.0.0)
+- PR template has 4 slice rows, commit scopes, DoD, STE, and gates
+- Epic slice template has 4 slices and collapse rule
 - Conventional Commit title regex
 - ASD-STE100 sentence length (≤25 words) for PR template Summary example
 """
@@ -14,23 +15,18 @@ import sys
 root = Path(__file__).resolve().parents[1]
 errors = []
 
-# 1. SKILL.md
+# 1. SKILL.md — LFG 2.0.0 portable contract (project specifics are delegated,
+# so STE rules and the MCDS gist are no longer required in the skill body)
 skill = (root / "SKILL.md").read_text(encoding="utf-8")
 for needle in [
-    "context-boundary slices",
-    "When to slice vs. collapse",
-    "Slice table",
-    "Conventional Commits",
-    "ASD-STE100",
-    "Testability",
-    "Automated pr-review checklist",
+    "boundary slices",
+    "test gates",
+    "definition of done",
+    "conventional commit",
+    "handoff",
 ]:
     if needle.lower() not in skill.lower():
         errors.append(f"SKILL.md missing: {needle}")
-
-# gist link
-if "gist.github.com/twilson63/1b9bb838da806958cc1a11579c9d4a5d" not in skill:
-    errors.append("SKILL.md §3a must link the MCDS gist.")
 
 # 2. PR template
 pr_path = root / ".github" / "pull_request_template.md"
@@ -69,10 +65,7 @@ sample = "feat(funds): MCDS-033 slice 1 — data/service"
 if not cc_re.match(sample):
     errors.append("CC regex broken on sample")
 
-# 5. ASD-STE100: max 25 words per sentence in PR Summary example
-# Check that template contains instruction about 25 words
-if "25 words" not in skill:
-    errors.append("STE 25-words rule missing in SKILL.md")
+# 5. ASD-STE100: max 25 words per sentence in PR template Summary example
 if pr_path.is_file() and "25 words" not in pr_path.read_text(encoding="utf-8"):
     errors.append("STE 25-words rule missing in PR template")
 

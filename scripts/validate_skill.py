@@ -52,16 +52,17 @@ else:
         if needle.lower() not in pr_text.lower():
             errors.append(f"PR template missing required section: {needle}.")
 
-if "context-boundary slices" not in text.lower():
-    errors.append("SKILL.md missing required section: context-boundary slices (LFG §3a).")
-if "Conventional Commits" not in text or "ASD-STE100" not in text:
-    errors.append("SKILL.md PR slice section must mention Conventional Commits and ASD-STE100.")
+# LFG 2.0.0: the skill teaches the boundary-slicing concept and Conventional
+# Commits; project-specific conventions (STE, slice tables, gist templates)
+# are delegated to project AGENTS.md and PR templates, which are checked here.
+if "boundary slices" not in text.lower() or "conventional commit" not in text.lower():
+    errors.append("SKILL.md slice section must teach boundary slices and Conventional Commits.")
 
 if not (root / "docs" / "planning" / "epic-slice-template.md").is_file():
     errors.append("Missing required slice template: docs/planning/epic-slice-template.md.")
 
-# HTML coordination features (LFG File coordination) — required in SKILL.md
-for needle in ("date/time", "cross-link", "force-directed", "flow diagram", "inline JavaScript"):
+# HTML coordination features (LFG Artifacts section) — promised in SKILL.md
+for needle in ("created", "last updated", "ISO 8601", "cross-link", "file://"):
     if needle.lower() not in text.lower():
         errors.append(f"SKILL.md missing HTML coordination feature: {needle}.")
 

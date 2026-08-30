@@ -1,6 +1,6 @@
 ---
 name: lfg
-version: "1.1.0"
+version: "2.0.0"
 description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks.
 tags:
   - agent-workflows
@@ -9,359 +9,59 @@ tags:
   - validation
 ---
 
-# LFG — Lets Fucking Go
+# LFG
 
-Use this skill when the user wants an implementation driven by explicit research, a written plan, and a review/repair loop.
+Run when the user wants an implementation driven by explicit research, a written plan, and a review/repair loop. The loop is bounded: it stops when acceptance criteria are met, a blocker needs the user, or repairs are exhausted. Prefer simple, cohesive, idiomatic changes over clever or sprawling ones.
 
-Coordination should happen mainly through files, especially:
+## Triage first
 
-- an HTML PRD document that contains the definition, constraints, plan, step-level acceptance criteria, judge rubric, and final acceptance target;
-- an HTML progress document that records step status, evidence, reviewer findings, repair loops, validation output, and final result.
+- **Full loop** — default for broad, ambiguous, design-sensitive, or security-sensitive work. Research → define → plan → plan-review gate → implement stepwise → evaluate → implementation-review gate → repair → report, with PRD + progress docs.
+- **Fast path** — only when ALL hold: roughly ≤30 lines across ≤3 files; no security/IPC/approval/path/browser surface; no UX/copy/architecture impact; an obvious validation command. Skip the docs, make the change, validate, do one explicit self-review against the user's stated goal, and say you took the fast path.
+- Never fast-path security-sensitive boundaries (approvals, IPC handlers, preload bridge, path validation, file/rendering, shell protection). When unsure, use the full loop.
 
-## Core Definition
+## Artifacts
 
-LFG is a bounded workflow:
+Coordinate through files, not chat memory. Default paths (follow better repo conventions):
 
-1. **Research** — understand the codebase, existing behavior, constraints, security model, and user intent.
-2. **Define** — state the key concept in project-specific terms before changing code.
-3. **Plan with a planner subagent** — when subagents are available, spawn a planning-focused subagent to challenge assumptions, propose steps, and attach acceptance criteria to every step.
-4. **Coordinate through HTML files** — write/update the PRD HTML and progress HTML so humans and subagents share the same source of truth.
-5. **Implement** — make focused changes for one planned step at a time.
-6. **Evaluate** — compare the completed step against its acceptance criteria using evidence from code review, tests, or runtime checks.
-7. **Repeat or advance** — if the step does not meet its acceptance criteria, repair and repeat that same step; only advance once it passes.
-8. **Review with an LLM-as-judge subagent** — when subagents are available, spawn a reviewer/judge subagent to score correctness, criteria coverage, taste, and originality.
-9. **Repair** — fix review/test findings, then re-run relevant validation.
-10. **Report** — summarize changed files, validation evidence, residual risks, and follow-ups.
+- `docs/<task-slug>-prd.html` — project-specific definition; goals/non-goals; constraints (especially security/privacy); step plan with acceptance criteria and required evidence per step; validation commands; judge rubric; overall acceptance target.
+- `docs/<task-slug>-progress.html` — status (`planned` / `in-progress` / `repairing` / `blocked` / `complete`); per-step checklist with evidence and pass/fail; changed-file links; validation results; reviewer findings; residual risks and final outcome.
 
-The loop is not an open-ended autonomous process. Stop when all step-level and overall acceptance criteria are met, when a blocker needs user input, or after a bounded repair pass (see below).
+Rules: self-contained HTML (inline CSS/JS only; no external scripts, styles, or fetches — must render from `file://`; escape code inside `<code>`/`<pre>`); visible `created` and `last updated` ISO 8601 timestamps, updating the latter on every change; relative cross-links between the two, plus any handoff file and reference material. Copy any subagent plan or review findings into these files — chat history is not coordination. Optionally include one small inline force-directed `<canvas>` diagram of the loop (≤12 nodes, no libraries, no network; mark the active step in the progress doc).
 
-## Triage: when to use the full loop
+### Handoff file
 
-Run the full PRD HTML + progress HTML + planner + dual reviewer loop for **broad, ambiguous, design-sensitive, or security-sensitive** work. For small, well-scoped changes, use a fast path and say so explicitly:
-
-- **Full loop** (default for the triggers above): PRD HTML, progress HTML, planner subagent, plan-review gate, per-step acceptance criteria, implementation-review gate.
-- **Fast path** (use only when *all* are true): the change touches roughly ≤30 lines across ≤3 files, has no security/IPC/approval/path/browser surface, has no UX/copy/architecture impact, and has an obvious validation command. In fast path: skip the PRD HTML and progress HTML, skip the planner and plan-review gate, make the change directly, run validation, and do a single self-review against the user's stated goal. Still run an implementation-review pass if a reviewer subagent is cheap and the change is non-trivial.
-- Never silently use the fast path for security-sensitive boundaries (approvals, IPC handlers, preload bridge, path validation, browser risk routing, Markdown/file rendering, shell protection). If unsure, default to the full loop.
-
-## File coordination
-
-Prefer file-based coordination over hidden conversational state. The parent agent, planner subagent, reviewer subagent, and human should all be able to inspect the same artifacts.
-
-**Why HTML (not Markdown).** Rendered HTML gives real structure — sections, tables, status chips, links to related docs, and interactive diagrams — and opens directly in a browser without a separate viewer, so the PRD and progress docs double as a human-readable dashboard. Markdown would collapse this to flat text. Keep the HTML well-formed and self-contained: inline CSS and inline JavaScript are fine, but **no external scripts, no external stylesheets, and no remote fetches** — the file must render fully from `file://` with no network. Escape any code/output snippets inside `<code>`/`<pre>` to avoid breaking markup.
-
-**Every artifact must carry three coordination features:**
-
-1. **Date/time.** A visible header with `created` and `last updated` timestamps (ISO 8601, e.g. `2026-08-15T09:03:00Z`), plus a small "updated on each change" note. Update `last updated` whenever the document changes; keep `created` fixed. This is what lets a re-entering session and a human see how stale a doc is.
-2. **Cross-links.** Link the related docs to each other so the set is navigable: PRD ↔ progress ↔ handoff, and to any reference material. Use relative links (`[progress](./<task-slug>-progress.html)`) so they resolve from `file://`. The progress doc should link back to the PRD; the PRD should link forward to the progress log; both should link to the handoff file if one exists.
-3. **Flow diagram.** Render the workflow as an HTML5 `<canvas>` with a **force-directed (gravity) layout** — nodes auto-arrange via a physics simulation and settle into a stable arrangement, with the loop edges (e.g. review → repair → implement) pulling the graph into a cycle. See the Flow diagram section below for the required implementation.
-
-Default artifact names:
-
-- `docs/<task-slug>-prd.html` — the product/implementation requirements document.
-- `docs/<task-slug>-progress.html` — the live progress and evidence log.
-
-Use another directory if the repo has a better convention, but keep both files in the project unless the user asks for temporary artifacts.
-
-### PRD HTML requirements
-
-The PRD document should be human-readable HTML, not only Markdown, so it can be opened directly in a browser. It should include:
-
-- **date/time header** — `created` and `last updated` ISO 8601 timestamps;
-- **cross-links** — to the progress log, handoff file, and any reference material (relative links);
-- task title and short summary;
-- project-specific definition of the core concept/problem;
-- goals and non-goals;
-- constraints, especially privacy/security constraints;
-- step-by-step plan;
-- acceptance criteria for every step;
-- evidence required for every acceptance criterion;
-- validation commands;
-- LLM-as-judge rubric, including taste and originality where relevant;
-- **flow diagram** — a force-directed `<canvas>` of the workflow (see Flow diagram);
-- final overall acceptance criteria.
-
-### Progress HTML requirements
-
-The progress document should be the running coordination log. Update it after each step and after every reviewer/judge pass. It should include:
-
-- **date/time header** — `created` and `last updated` ISO 8601 timestamps (update `last updated` on every change);
-- **cross-links** — back to the PRD, to the handoff file, and to any reference material (relative links);
-- current status: `planned`, `in-progress`, `blocked`, `repairing`, `escalated`, or `complete`;
-- checklist of planned steps;
-- for each step: acceptance criteria, evidence gathered, pass/fail/uncertain status, and repair attempts;
-- links or paths to changed files;
-- validation commands and results;
-- reviewer/judge findings;
-- taste/originality scores when relevant;
-- **flow diagram** — a force-directed `<canvas>` of the step/repair loop (see Flow diagram);
-- residual risks and final outcome.
-
-Do not rely on chat history alone for coordination. If a subagent produces a plan or review, copy the important decisions/findings into the PRD or progress HTML.
-
-### Flow diagram (force-directed / gravity layout)
-
-The workflow is not a flat list — it is a loop with feedback edges (review → repair → implement, evaluate → repair, and so on). Render it as an HTML5 `<canvas>` whose nodes **auto-arrange via a force-directed (gravity) simulation** and settle into a stable layout, instead of hand-placing boxes. This makes the loop's cycles visible at a glance and stays self-contained (inline JS, no external script, no remote fetch).
-
-**Required implementation.** Inline a small self-contained force simulation (a Fruchterman–Reingold-style layout is sufficient — no library). It must:
-
-- take a `nodes` list (id, label, radius) and an `edges` list (pairs of node ids);
-- apply three forces each tick: **repulsion** between all node pairs (inverse-square), **spring** pull along edges toward an ideal length, and **center gravity** pulling the graph toward the canvas center;
-- integrate with a cooling `temp` (multiply by ~0.98 each tick) so motion decays; stop the loop when `temp` falls below ~0.02 (or when a node is being dragged);
-- clamp every node inside the canvas bounds so nothing escapes;
-- draw edges then nodes (circle + centered label) each frame via `requestAnimationFrame`;
-- support **drag-to-re-settle**: on `mousedown` grab the nearest node, on `mousemove` move it, on `mouseup` release and re-heat `temp` so the graph re-settles.
-
-**Verified baseline.** The reference implementation in `docs/samples/force-directed-flow.html` settles the LFG loop (8 nodes, 9 edges, canvas 900×520) in ~259 steps to **zero overlaps**, all nodes in-bounds, and stable (sub-pixel drift). Port that algorithm rather than inventing a new one; it is the known-good baseline.
-
-**What to diagram.** In the PRD, diagram the full loop: research → define → plan → implement → evaluate → review → report, with the repair and review feedback edges. In the progress doc, diagram the current step/repair loop and mark the active step (e.g. a distinct fill color) so the human sees where the loop is. Keep node labels short; the simulation handles placement.
-
-**Pitfalls.** Do not pin node positions — let the simulation place them (that is the whole point of the gravity layout). Do not add external scripts or CDN links; the diagram must work from `file://` with no network. Keep the simulation cheap (≤ ~12 nodes) so it settles in well under a second; for larger graphs, raise `temp` decay or cap iterations.
-
-## Session durability (tape and memory)
-
-A bounded loop can outlive a single conversation (compaction, handoff, re-entry). Use the harness's durable-state tools so the work survives:
-
-- **Tape anchors.** Record a `tape_handoff` anchor at loop start (`task/begin`), a `task/plan-approved` anchor once the plan-review gate passes, a `task/step-N-done` anchor as each step meets its criteria, and a `task/complete` anchor at the end. Each anchor's summary should name the task slug, current step, and status. On re-entry, read forward from the last anchor to recover state instead of replaying chat.
-- **File fallback when tape is unavailable.** If the tape tool is not present in this harness, mirror the same checkpoints into a small handoff file (default `docs/<task-slug>-handoff.md`) or an append-only section of the progress HTML: one timestamped line per checkpoint (`begin` / `plan-approved` / `step-N-done` / `complete` / `blocked`) carrying the task slug, step, status, and a pointer to evidence. The parent and any re-entering session read that file the same way they would read anchors. Do not duplicate it into chat.
-- **Memory.** At loop completion (or when a durable decision/risk is discovered), write a short memory file capturing the definition used, key decisions, non-goals, residual risks, and follow-ups — so the next session inherits the context. Use the project memory-write skill if available; otherwise note the durable facts in the final report.
-- **Skip only when cheap and short.** For the fast path (see Triage), tape/memory handoff is optional. For the full loop it is recommended, not optional.
-
-Never put secrets, private keys, prompt contents, or raw browser DOM into tape anchors or memory files — summarize, never copy.
-
-## Subagent roles
-
-Use subagents as advisory critics, not as unbounded autonomous owners. Before invoking subagents, list available agents with the subagent tool and choose executable, non-disabled agents. If no suitable planner/reviewer exists, use the closest worker/reviewer-style agent and include these directives in the task. If no subagents are available, perform the same role manually and say so.
-
-### Choosing agents by traits
-
-Prefer agents whose declared traits match the role; if none match exactly, pick the closest and inject the role directives via the task string.
-
-| Role | Preferred traits | Acceptable fallback | Avoid |
-| --- | --- | --- | --- |
-| Planner | read-only/no-edit, analysis/architecture posture, fresh context, can read project files | any code-analysis or advisory agent; pass the planner directives in the task | agents that auto-edit; fork-context clones inheriting in-flight edits |
-| Reviewer (plan gate) | read-only, strict/critic posture, fork context (judges a snapshot) | a second analysis agent with a critic prompt | the same agent that wrote the plan |
-| Reviewer (impl gate) | read-only, can read diffs + run validation, fork context | a code-review or test-focused agent | agents with edit access unless you explicitly want self-repair |
-
-In all cases: pass the role-specific directives from this skill in the task, confirm the agent is executable and not disabled, and prefer `fork` context for reviewers so they judge a stable snapshot. If the harness exposes a packaged planner/reviewer (e.g. a `pi-subagents` review/critique agent), prefer it over a generic worker. Note the chosen agent's name and trait match in the progress HTML so re-entry knows what to re-invoke.
-
-### Planner subagent attributes
-
-Spawn before implementation for broad or design-sensitive work.
-
-Directives for the planner:
-
-- Act as a skeptical product-minded architect, not a code generator.
-- Restate the project-specific definition and constraints.
-- Produce a step-by-step plan with **acceptance criteria for every step**, returned as text for the parent agent to write into the PRD HTML. Do not write or update the PRD HTML yourself; the planner returns a plan and risk review only.
-- Include evidence required for each criterion: test command, diff inspection, screenshot, log excerpt, reviewer note, or manual check.
-- Specify what the progress HTML should track for each step.
-- Call out security/privacy risks and non-goals.
-- For UI, UX, copy, docs, product, or architecture work, include **taste and originality acceptance criteria**.
-- Prefer simple, cohesive, idiomatic changes over clever or sprawling ones.
-- Do not edit files; return a plan and risk review only.
-
-Planner task template:
-
-```text
-Act as the lfg planner for this task. Define the core concept in project-specific terms, then produce a step-by-step plan for the PRD HTML. Every step must include acceptance criteria and required evidence. Include privacy/security constraints, non-goals, progress HTML tracking requirements, and taste/originality criteria where applicable. Do not implement.
-```
-
-### Reviewer / LLM-as-judge subagent attributes
-
-Spawn twice when useful: once before implementation to review the plan, and again after implementation to review the actual diff and validation evidence.
-
-Plan-review directives for the reviewer/judge:
-
-- Act as a strict but constructive plan gatekeeper.
-- Evaluate the PRD HTML before implementation begins.
-- Confirm the plan defines the goal in project-specific terms and includes a clear **definition of done**.
-- Confirm the plan addresses every user goal requirement and constraint.
-- Confirm proper research was performed: relevant files/docs were inspected, existing behavior was understood, and security/privacy implications were considered.
-- Confirm open questions, ambiguities, and assumptions are explicitly listed and either answered, resolved, or marked as blockers requiring user input.
-- Confirm every planned step has acceptance criteria and required evidence.
-- Confirm the plan includes validation commands and a final acceptance target.
-- Confirm taste/originality criteria are present for design-sensitive work.
-- Mark plan items as `pass`, `fail`, or `uncertain`; any missing required item blocks implementation.
-
-Implementation-review directives for the reviewer/judge:
-
-- Act as a strict but constructive implementation judge.
-- Evaluate each planned step separately against its acceptance criteria using the PRD HTML and progress HTML as the source of truth.
-- Mark each criterion as `pass`, `fail`, or `uncertain` with evidence.
-- Treat unmet required criteria as blockers.
-- Include a taste/originality rubric when relevant.
-- Do not edit files unless explicitly asked; return findings only.
-
-LLM-as-judge rubric:
-
-| Area | Required judgment |
-| --- | --- |
-| Correctness | Does the change solve the stated problem without regressions? |
-| Acceptance coverage | Does every planned criterion have evidence? |
-| Security/privacy | Are secrets, credentials, private keys, prompt contents, command output, and any approval-gated effects handled safely (and DOM/UI-state, where the project exposes it)? |
-| Simplicity | Is the design cohesive, idiomatic, and not over-engineered? |
-| Taste | Does the UX/API/copy/architecture feel polished, restrained, and product-appropriate? |
-| Originality | Does the solution avoid generic, cookie-cutter output while staying consistent with the project? |
-| Maintainability | Will future contributors understand and extend it? |
-| Validation | Were the right tests/checks/manual verifications run? |
-
-Taste/originality scoring:
-
-- `5`: distinctive, elegant, cohesive, and clearly better than the obvious generic solution.
-- `4`: polished and project-appropriate with some fresh thinking.
-- `3`: acceptable but conventional.
-- `2`: bland, clunky, over-familiar, or poorly integrated.
-- `1`: generic, incoherent, or aesthetically/product-wise harmful.
-
-A score below `4` on taste or originality should trigger a repair loop for design-sensitive work unless the user explicitly prefers speed over polish.
-
-Plan-review task template:
-
-```text
-Act as the lfg LLM-as-judge plan reviewer. Review the PRD HTML before implementation. Verify that the plan has a project-specific definition, clear definition of done, complete goal coverage, proper research evidence, answered or explicitly blocked open questions, step-level acceptance criteria, required evidence for every criterion, validation commands, and taste/originality criteria where relevant. Mark each area pass/fail/uncertain and list blockers. Do not edit.
-```
-
-Implementation-review task template:
-
-```text
-Act as the lfg LLM-as-judge implementation reviewer. Review the diff and validation evidence against the PRD HTML and progress HTML. For every planned step, mark each acceptance criterion pass/fail/uncertain with evidence. Score taste and originality from 1-5 where relevant, and list blocking fixes before merge. Do not edit.
-```
+At each milestone (`begin`, `plan-approved`, `step-N-done`, `complete`, `blocked`), append one timestamped line to `docs/<task-slug>-handoff.md`: task slug, step, status, evidence pointer. On re-entry or after compaction, recover state from the handoff file and docs instead of replaying chat. Optional only on the fast path. Never store secrets, keys, prompt contents, or raw command output in artifacts — summarize.
 
 ## Workflow
 
-### 1. Inspect context
+1. **Inspect.** Check branch and working tree; preserve unrelated changes and untracked files; read project instructions and the files/docs relevant to the request. Append the `begin` handoff line.
+2. **Define.** Before any code, state the core concept in project-specific terms: what it means here, what it explicitly does not mean, security/privacy implications, measurable success criteria.
+3. **Plan.** Produce (via the planner subagent when available) a plan where **every step has acceptance criteria and the concrete evidence required to prove each** — test command, diff inspection, screenshot, log excerpt, reviewer note, or manual check. Include definition of done, coverage of every user requirement and constraint, open questions resolved or explicitly marked as user-blockers, non-goals, validation commands, and taste/originality criteria for design-sensitive work. Write it into the PRD and initialize the progress doc.
+4. **Plan gate.** Have the plan reviewed (plan reviewer subagent, or manually). Implementation may not start until: every step has acceptance criteria + required evidence; definition of done exists; requirements and open questions are addressed; both docs exist; and the review has no `fail` findings. Then append `plan-approved`.
+5. **Implement stepwise.** For each step: read PRD/progress → implement only that step → gather its evidence → update the progress doc (files changed, validation output, criterion status) → evaluate against every criterion → advance only when all pass.
+6. **Repair boundedly.** On a failed criterion (or taste/originality <4 for design-sensitive work): diagnose from the evidence first, record the diagnosis, and produce a revised approach — never a blind retry of the same fix. Escalate to the user only on a true blocker: missing dependency/permission, an ambiguous requirement, or the same failure after 3 distinct replans of that step. Never commit while a step is `repairing`.
+7. **Implementation gate.** Review the actual diff (implementation reviewer subagent, or manually) against the PRD and progress docs. Unmet required criteria or blocking rubric findings → repair the failing step and re-gate.
+8. **Validate.** Run the project's canonical check — discover it from package.json scripts or project AGENTS.md (e.g. `npm run check`, `cargo check`, `pytest -q`). Smoke-check small changes; run the full suite for larger ones. Fix findings and re-run failing validation until green.
+9. **Report.** Concise summary: definition used, implementation summary, files changed, validation run and result, reviewer findings addressed, residual risks and follow-ups. Append the `complete` handoff line and note durable decisions so the next session inherits context.
 
-- Check the current branch and working tree.
-- Preserve unrelated user changes and untracked files.
-- Read project instructions and the files relevant to the request.
-- If the request concerns Pi itself, read the relevant Pi docs before implementation.
-- For the full loop, record a `tape_handoff` anchor (`task/begin`) summarizing the task slug and intent so the loop survives compaction or re-entry (or append a `begin` line to `docs/<task-slug>-handoff.md` if tape is unavailable).
+Do not edit generated `build/`/`dist/` output; edit sources and rebuild.
 
-### 2. Define the concept first
+## Multi-layer work: slice PRs by boundary
 
-Before writing code, define the core term in this project's language. Include:
+If an epic spans ≥2 context boundaries (e.g. `db` / `service` / `api` / `ui` / `integration`) or ≥4 files, plan it as boundary slices: each slice gets its own branch, conventional-commit scope (`feat(data)`, `feat(api)`, …), definition of done, and unit + E2E test gates runnable in CI; note inter-slice dependencies in the plan. Collapse to a single PR only when the whole change is <4 files, a couple of days of work, and one scope — and say so in the PR description. PRs: title and body in Conventional Commit form; `BREAKING CHANGE` footer when API contracts change; `Closes #<issue>` / `Part of #<epic>` footers; list each slice's test commands and evidence paths so automated review can verify the gates. Project-specific slice tables and PR checklists belong in that project's AGENTS.md, not here.
 
-- what it means here;
-- what it explicitly does not mean;
-- privacy/security implications;
-- measurable success criteria.
+## Commit cadence
 
-For example, for HyperDesk "observability" means local, structured, privacy-preserving diagnostics — not remote telemetry or product analytics.
+Scale with loop length: short loop (≤3 steps or fast path) → one commit at `complete`; medium (4–8 steps) → commit at each `step-N-done`; long (>8) → per step plus `complete`, optionally `plan-approved`. Commit only intended files; verify the tree has no unrelated changes first; leave unrelated untracked files untouched. If the user asked for a branch/PR, push and include the URL.
 
-### 3. Write or update a plan
+## Subagent roles
 
-For broad, ambiguous, design-sensitive, or architecture-sensitive work, invoke the planner subagent first and use its output to shape the plan. Create or update the PRD HTML and initialize the progress HTML before implementation. Then invoke the reviewer/judge subagent to review the plan before implementation. The plan should include:
+If this harness exposes subagents, use three advisory roles; if not, perform each role yourself and say so. List available agents first; prefer read-only/analysis agents; pass the role's directives in the task text; prefer fork/snapshot context for reviewers so they judge stable state; note the chosen agent in the progress doc. Subagents are critics, never owners.
 
-- phases or steps;
-- explicit acceptance criteria for every step;
-- evidence needed to prove each step is complete;
-- definition of done;
-- coverage of every user goal requirement and constraint;
-- research evidence and files/docs inspected;
-- open questions, assumptions, and their answers or blocker status;
-- non-goals;
-- validation commands;
-- risks and privacy/security constraints;
-- taste and originality criteria when the work touches UX, UI, copy, architecture, docs, or product feel.
+- **Planner** (step 3): skeptical product-minded architect. Returns text only — a step plan with per-step acceptance criteria and required evidence, risks, non-goals, taste/originality criteria where relevant. Never edits files or docs.
+- **Plan reviewer** (step 4): strict gatekeeper over the PRD. Marks each area `pass` / `fail` / `uncertain`: project-specific definition, definition of done, goal coverage, research evidence, open questions resolved-or-blocked, criteria + evidence per step, validation commands, taste criteria. Missing required items = `fail` = implementation blocked.
+- **Implementation reviewer** (step 7): judges the diff against PRD + progress. Per step, marks every criterion `pass` / `fail` / `uncertain` with evidence, scores taste/originality 1–5, and lists blocking fixes. Returns findings only; never edits unless explicitly asked.
 
-Each planned step should use this shape:
+Judge all roles against this rubric: correctness, acceptance coverage, security/privacy (no secrets, prompts, command output, or browser DOM exposure), simplicity, taste, originality, maintainability, validation.
 
-```markdown
-- Step N: <action>
-  - Acceptance criteria:
-    - <observable condition that must be true>
-    - <test/review/doc evidence required>
-  - Validation/evidence: <command, file diff, screenshot, reviewer note, etc.>
-```
-
-Do not start implementation until the planned steps have acceptance criteria, the plan has a definition of done, goal requirements and open questions are addressed, both the PRD HTML and progress HTML exist, and the plan-review pass has no blocking findings. (For lightweight changes, see Triage: use the fast path instead of this full gate.) When the plan-review gate passes, record a `task/plan-approved` tape anchor (or a `plan-approved` line in the handoff file) so re-entry can resume from implementation.
-
-### 3a. Plan the PR — context-boundary slices (required for multi-layer work)
-
-For any epic that spans more than one context boundary (e.g. `data` / `service` / `api` / `admin` / `integration` in the MCDS-033/034/035 Funds Movement template at https://gist.github.com/twilson63/1b9bb838da806958cc1a11579c9d4a5d), add this sub-step to the plan before implementation. It makes the PR submittable as full slices with reviewable diffs, deterministic commits, and test gates that automated pr-review can verify.
-
-**When to slice vs. collapse.** Slice by boundary when the change touches ≥2 context boundaries or ≥4 files. Collapse to one E2E slice/PR only if all are true: `<4 files`, `<2 days`, single facility/code scope, no freeze/balance precedence branch, `≤3 devs` and no parallel-review benefit. If collapsed, add `Skip linked slices — size justifies single PR` to the PR description and keep all 4 DoD checklists in that one PR.
-
-**Slice table (one row per boundary).** Every plan and every PR description must include:
-
-| Slice | Boundary | Branch | Conventional scope | Depends on | Definition of Done (DoD) | Unit gate | E2E gate |
-|---|---|---|---|---|---|---|---|
-| 1 | `data` + `service` (blocks 2–3) | `<scope>-<id>-1-data` e.g. `mcds-033-1-data` | `feat(data)` / `feat(service)` | — | Prisma model/migration + Zod schemas in `packages/types` (`z.infer` only); `data/` only place with `prisma` (`{ tx? }`); `services/` owns `withTransaction(SERIALIZABLE, P2034×3+jitter)` + freeze/balance checks; errors `OrderValidationError` / `InsufficientFundsError` / `TransactionConcurrencyError(409)` | `data/*.test.ts` mocked Prisma `tx` + `services/*.test.ts` retries | `pnpm check-types` + `pnpm --filter @repo/db --filter @repo/types test` |
-| 2 | `api` routes | `<scope>-<id>-2-api` | `feat(api)` | Slice 1 | Thin handlers `validateInput → service → respond → c.json(201|200)`; no Prisma; `requireJwtSession → loadUserRoles → requirePermission('<perm>')` (+ `requirePinVerification`); `authenticatedRateLimit` + `requireFacilityAccess`; `utils/error-handler.ts` mapping (Zod 400, `PIN_REQUIRED 403`, `P2002→409`) | Hono `app.request` mocked service + `testErrorHandler` shape/status | `pnpm --filter @repo/api test` + `turbo build` per-layer gate |
-| 3 | `admin` / kiosk UI | `<scope>-<id>-3-ui` | `feat(admin)` or `feat(ui)` | Slice 1 (+ types) | Mantine `useForm+zodResolver(Schema)` → TanStack Query hooks; `usePermissions().hasPermission` + wildcard + `System Admin` bypass; freeze/block disabled states surfaced | Vitest `jsdom` + `setupFiles` for Mantine, form + disabled-state tests | `pnpm --filter @repo/admin test` |
-| 4 | `integration` / seed / audit | `<scope>-<id>-4-int` | `chore(seed)` / `feat(audit)` | Slices 1–3 | `prisma/seeds/*` + `facilities.ts` for facility codes; `pnpm db:seed` + `db:reset` green; route E2E `POST /admin/facility/:code/... →201` + cents check + `GET /logs` audit entry; `docs/` checked | — | Full E2E: `POST` via curl/Hono + balance cents + audit log under `view:facility:logs` |
-
-For other domains, keep the same 4-row shape and rename boundaries (e.g. `db` / `core` / `api` / `web` / `int`).
-
-**Conventional Commits (required).** Every commit on a slice branch must satisfy `^ (feat|fix|docs|chore|refactor|test|build|ci)(\(.+\))?!?: .+` . Use: `feat(data): …` for Slice 1, `feat(api): …` for Slice 2, `feat(admin): …` for Slice 3, `chore(seed): …` or `feat(audit): …` for Slice 4. Add `BREAKING CHANGE:` footer when API/Zod changes. Add `Closes #<slice-issue>` and `Part of #<epic>` footers. The PR title itself must be a Conventional Commit (e.g. `feat(funds): MCDS-033 slice 1 — data/service`).
-
-**ASD-STE100 for PR documentation (required).** Write the PR title, summary, and slice descriptions in ASD Simplified Technical English: max 25 words per sentence, one instruction per sentence, active voice only, use only approved verbs (`do`, `make`, `use`, `check`, `send`, `show`, `write`, `update`, `test`, `verify`), no idioms or phrasal verbs, no contractions, define every abbreviation on first use. Short sentences are mandatory. Example: `This PR adds the data slice. It creates the JournalEntry model. It validates funds in cents. It uses withTransaction. It writes audit entries.` Provide a `Before STE / After STE` note in the PR when the summary exceeds 25 words.
-
-**Testability (required for automated pr-review).** Each slice must list its commands and evidence path in the PR:
-- Unit: command + file (e.g. `pnpm --filter @repo/db test -- data/transfer.test.ts` → `test-results/unit-slice-1.xml`)
-- E2E: command + log excerpt + assertion (e.g. `curl -X POST /admin/facility/1147/transfer → 201 + balance 12345 cents + GET /logs contains JournalEntry`)
-- Gates must run in CI per slice: `python3 scripts/validate_skill.py`, `python3 scripts/validate_pr_slices.py`, `pytest -q` (unit), `pytest -m e2e` or `pnpm test:e2e` (E2E). A slice with no green unit gate and no green E2E gate cannot merge — the automated reviewer must mark it `fail`.
-
-**Automated pr-review checklist (must appear in `.github/pull_request_template.md`).** The template must include checkable boxes for: `title is Conventional Commit`, `each slice has branch + scope + DoD`, `STE sentence length ≤25`, `no Prisma in routes/services (grep "from '@/utils/prisma'" only in data/)`, `no regex in prod`, `cents-only DB`, `withTransaction + P2034 retry`, `error-handler mapping`, `unit gate green`, `E2E gate green`, `docs/planning updated`.
-
-### 4. Implement in focused step loops
-
-For each planned step:
-
-1. Read the PRD HTML and current progress HTML.
-2. Implement only the current step.
-3. Gather the step's required evidence.
-4. Update the progress HTML with changed files, validation output, criterion status, and notes.
-5. Compare the result against every acceptance criterion for that step.
-6. If any criterion is unmet, mark the step `repairing`, repair, update progress HTML, and repeat the same step.
-7. Advance to the next step only after the current step meets its criteria.
-
-**Bounded repair with replanning.** On any step failure (or a taste/originality <4 for design-sensitive work), do not blindly retry the same fix. First evaluate the failure: read the error/evidence, update the progress HTML with the diagnosis, and produce a *better plan for that step* (revised approach, smaller sub-step, or new acceptance evidence) before re-attempting. The loop should continue for **at least 15 repair/replan iterations across the whole task** before escalating to a human, and each iteration must carry a fresh plan, not a repeat. Escalate to the user earlier only on a true blocker: a missing dependency/permission, an ambiguous requirement needing user input, or the *same* failure with no new plan available after 3 distinct replans of that one step. This is what makes the loop genuinely bounded yet persistent.
-
-Implementation guidance:
-
-- Prefer small modules and explicit integration points.
-- Avoid logging or exposing secrets, prompts, command output, browser DOM, private keys, or credentials unless the task explicitly requires it.
-- Keep security-sensitive approval, IPC, path, and browser boundaries intact.
-- Use exact edit tools for targeted edits.
-- Do not edit generated `build/`/`dist/` output; edit sources and rebuild.
-- As each step meets its criteria, record a `task/step-N-done` tape anchor (or a `step-N-done` line in the handoff file) summarizing what passed and the evidence path, so progress is recoverable.
-
-### 5. Review loop
-
-If subagents are available, run the reviewer / LLM-as-judge subagent for two gates: first on the PRD plan before implementation, then on the implementation after changes. First list agents with the subagent tool, then choose an executable reviewer/critic agent if present. Ask it to review the plan for definition of done, goal coverage, research completeness, open questions, acceptance criteria, validation, and taste/originality where relevant. After implementation, ask it to review the uncommitted diff for correctness, security/privacy, test coverage, plan compliance, and taste/originality where relevant. Do not let the reviewer edit unless explicitly desired.
-
-If the judge marks any required acceptance criterion as `fail` or gives taste/originality below `4` for design-sensitive work, repair and repeat the relevant implementation step before finalizing.
-
-If no suitable subagent exists, perform the same checklist manually.
-
-### 6. Validate and repair
-
-Run the project's canonical build/lint/check command — the architecture-equivalent of `npm run check` (e.g. `cargo check`, `go build ./...`, `pytest -q`, `gleam check`, `npm test`). Discover it from `package.json` scripts, the project's AGENTS.md, or the nearest task runner. For smaller changes, run targeted syntax/smoke checks first; for larger ones, run the full suite. Fix findings and re-run the failing validation until green.
-
-Example (HyperDesk): `npm run check` then `npm test`.
-
-For sliced PRs (see §3a), run both gates: `python3 scripts/validate_skill.py` and `python3 scripts/validate_pr_slices.py` plus per-slice unit (`pytest -q` or `pnpm --filter <slice> test`) and E2E (`pytest -m e2e` or `pnpm test:e2e`). The automated pr-review must fail if any slice has no unit evidence or no E2E evidence.
-
-### 7. Final report
-
-Return a concise summary with:
-
-- definition used;
-- implementation summary;
-- files changed;
-- validation run and result;
-- reviewer findings addressed;
-- residual risks or follow-ups.
-
-Record a `task/complete` tape anchor (or a `complete` line in the handoff file) and write a concise memory file (or note durable facts in the report if no memory tool is available) capturing the definition used, key decisions, non-goals, and residual risks, so the next session inherits the context. Do not store secrets, private keys, prompt contents, or raw browser DOM in anchors or memory.
-
-**Commit cadence.** Commit frequency should scale with loop length, not happen ad hoc:
-
-- Short loop (≤3 steps / fast path): one commit at `task/complete`.
-- Medium loop (4–8 steps): commit at each `step-N-done` checkpoint.
-- Long loop (>8 steps): commit at each `step-N-done` and again at `complete`; consider a commit at `plan-approved` too.
-
-Never commit mid-repair (while a step is `repairing`). Before committing, verify the working tree has no unrelated changes and that no autoresearch `log_experiment` auto-commit is racing this loop — if it is, let autoresearch own commits and skip manual commits here. Commit only intended files, plus the PRD/progress/handoff artifacts if the user wants them tracked; leave unrelated untracked files untouched.
-
-If the user asked for a branch/PR, push the branch and include the PR URL.
+Taste/originality scale: **5** distinctive and clearly better than the generic solution · **4** polished with some fresh thinking · **3** acceptable but conventional · **2** bland, clunky, or poorly integrated · **1** generic, incoherent, or product-damaging. For design-sensitive work, a score below 4 triggers a repair pass unless the user prefers speed over polish.
