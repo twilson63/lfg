@@ -1,7 +1,7 @@
 ---
 name: lfg
-version: "2.0.0"
-description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks.
+version: "2.1.0"
+description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks. Use when the user says lfg or lets-fucking-go, or wants a written plan with per-step acceptance criteria.
 tags:
   - agent-workflows
   - planning
@@ -16,8 +16,8 @@ Run when the user wants an implementation driven by explicit research, a written
 ## Triage first
 
 - **Full loop** — default for broad, ambiguous, design-sensitive, or security-sensitive work. Research → define → plan → plan-review gate → implement stepwise → evaluate → implementation-review gate → repair → report, with PRD + progress docs.
-- **Fast path** — only when ALL hold: roughly ≤30 lines across ≤3 files; no security/IPC/approval/path/browser surface; no UX/copy/architecture impact; an obvious validation command. Skip the docs, make the change, validate, do one explicit self-review against the user's stated goal, and say you took the fast path.
-- Never fast-path security-sensitive boundaries (approvals, IPC handlers, preload bridge, path validation, file/rendering, shell protection). When unsure, use the full loop.
+- **Fast path** — only when ALL hold: roughly ≤30 lines across ≤3 files; no trust-boundary surface; no UX/copy/architecture impact; an obvious validation command. Skip the docs, make the change, validate, do one explicit self-review against the user's stated goal, and say you took the fast path.
+- Never fast-path work that crosses a trust boundary: authentication or authorization, privilege or process boundaries, input and path validation, deserialization, subprocess or shell execution, secret handling. When unsure, use the full loop.
 
 ## Artifacts
 
@@ -52,7 +52,7 @@ If an epic spans ≥2 context boundaries (e.g. `db` / `service` / `api` / `ui` /
 
 ## Commit cadence
 
-Scale with loop length: short loop (≤3 steps or fast path) → one commit at `complete`; medium (4–8 steps) → commit at each `step-N-done`; long (>8) → per step plus `complete`, optionally `plan-approved`. Commit only intended files; verify the tree has no unrelated changes first; leave unrelated untracked files untouched. If the user asked for a branch/PR, push and include the URL.
+Commit only if the user asked for commits, a branch, or a PR; otherwise leave the work in the tree and say so in the report. When committing, scale with loop length: short loop (≤3 steps or fast path) → one commit at `complete`; medium (4–8 steps) → commit at each `step-N-done`; long (>8) → per step plus `complete`, optionally `plan-approved`. Commit only intended files. If the user asked for a branch/PR, push and include the URL.
 
 ## Subagent roles
 
@@ -62,6 +62,6 @@ If this harness exposes subagents, use three advisory roles; if not, perform eac
 - **Plan reviewer** (step 4): strict gatekeeper over the PRD. Marks each area `pass` / `fail` / `uncertain`: project-specific definition, definition of done, goal coverage, research evidence, open questions resolved-or-blocked, criteria + evidence per step, validation commands, taste criteria. Missing required items = `fail` = implementation blocked.
 - **Implementation reviewer** (step 7): judges the diff against PRD + progress. Per step, marks every criterion `pass` / `fail` / `uncertain` with evidence, scores taste/originality 1–5, and lists blocking fixes. Returns findings only; never edits unless explicitly asked.
 
-Judge all roles against this rubric: correctness, acceptance coverage, security/privacy (no secrets, prompts, command output, or browser DOM exposure), simplicity, taste, originality, maintainability, validation.
+Judge all roles against this rubric: correctness, acceptance coverage, security/privacy (no leaked secrets, prompt contents, raw command output, or user data), simplicity, taste, originality, maintainability, validation.
 
 Taste/originality scale: **5** distinctive and clearly better than the generic solution · **4** polished with some fresh thinking · **3** acceptable but conventional · **2** bland, clunky, or poorly integrated · **1** generic, incoherent, or product-damaging. For design-sensitive work, a score below 4 triggers a repair pass unless the user prefers speed over polish.

@@ -41,7 +41,7 @@ Small, obvious, low-risk changes can use its documented fast path.
 
 ## Versioning
 
-`SKILL.md` follows semver. The current version is **2.0.0** — same bounded loop, leaner text. Compared with 1.x, v2.0.0 compresses the skill for models that follow complex instructions well, moves project-specific conventions (slice tables, PR checklists, STE rules) into project AGENTS.md and PR templates, replaces harness-specific checkpointing with the portable handoff file, and re-scopes the repository validators to assert only portable invariants.
+`SKILL.md` follows semver. The current version is **2.1.0**, which keeps the skill portable: it replaces project-specific security examples with general trust-boundary categories, makes commits conditional on the user asking for them, and treats the force-directed flow diagram as optional. Compared with 1.x, v2.0.0 compresses the skill for models that follow complex instructions well, moves project-specific conventions (slice tables, PR checklists, STE rules) into project AGENTS.md and PR templates, replaces harness-specific checkpointing with the portable handoff file, and re-scopes the repository validators to assert only portable invariants.
 
 ## What it does not do
 

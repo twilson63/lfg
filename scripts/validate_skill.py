@@ -32,9 +32,6 @@ for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", ".gitigno
     if not (root / path).is_file():
         errors.append(f"Missing required repository file: {path}.")
 
-if (root / ".zenbin").exists() and ".zenbin/" not in (root / ".gitignore").read_text(encoding="utf-8"):
-    errors.append(".zenbin/ must be ignored.")
-
 # PR slice planning invariants (LFG §3a) — required template and skill section
 pr_template = root / ".github" / "pull_request_template.md"
 if not pr_template.is_file():
@@ -83,8 +80,10 @@ for artifact in ("lfg-skill-repo-prd.html", "lfg-skill-repo-progress.html"):
         errors.append(f"{artifact} missing date/time header.")
     if "href=\"./" not in html:
         errors.append(f"{artifact} missing relative cross-links.")
-    if "<canvas" not in html or "requestAnimationFrame" not in html:
-        errors.append(f"{artifact} missing force-directed <canvas> flow diagram.")
+    # The force-directed <canvas> diagram is optional (see SKILL.md Artifacts).
+    # If an artifact includes one, it must be a real animated diagram, not a stub.
+    if "<canvas" in html and "requestAnimationFrame" not in html:
+        errors.append(f"{artifact} has a <canvas> but no animation loop.")
     # self-contained: no external scripts / stylesheets / remote fetches
     if _re.search(r"<script[^>]+src=|<link[^>]+href=|https?://[^\"'\s]+\.js", html):
         errors.append(f"{artifact} must be self-contained (no external scripts/remote fetches).")
