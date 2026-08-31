@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python3 -m pip install pytest
       - name: Validate skill metadata and repository invariants
         run: python3 scripts/validate_skill.py
       - name: Validate PR slice planning invariants

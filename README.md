@@ -29,13 +29,19 @@ Use the LFG workflow to review and harden this authentication change.
 For broad, ambiguous, design-sensitive, or security-sensitive work, the skill requires:
 
 1. Research of the existing project and constraints.
-2. A project-specific definition of the problem.
-3. An HTML PRD and progress log with step-level acceptance criteria.
-4. A plan review before implementation when subagents are available.
-5. Focused implementation loops with evidence and replanning on failure.
+2. A project-specific definition of the problem before any code.
+3. An HTML PRD and progress log with step-level acceptance criteria and required evidence.
+4. A plan review before implementation — subagent when available, manual otherwise.
+5. Focused implementation loops with evidence per criterion and bounded repair: diagnose, replan, then retry.
 6. An implementation review against the plan and validation output.
+7. A handoff file with milestone checkpoints, so work survives compaction, re-entry, or a new session.
+8. Boundary-sliced PRs for multi-layer epics (two or more context boundaries, or four or more files), each slice with its own definition of done and test gates.
 
 Small, obvious, low-risk changes can use its documented fast path.
+
+## Versioning
+
+`SKILL.md` follows semver. The current version is **2.1.0**, which keeps the skill portable: it replaces project-specific security examples with general trust-boundary categories, makes commits conditional on the user asking for them, and treats the force-directed flow diagram as optional. Compared with 1.x, v2.0.0 compresses the skill for models that follow complex instructions well, moves project-specific conventions (slice tables, PR checklists, STE rules) into project AGENTS.md and PR templates, replaces harness-specific checkpointing with the portable handoff file, and re-scopes the repository validators to assert only portable invariants.
 
 ## What it does not do
 
@@ -60,7 +66,18 @@ Validate the frontmatter and repository invariants without dependencies:
 
 ```bash
 python3 scripts/validate_skill.py
+python3 scripts/validate_pr_slices.py
 ```
+
+Run the test suites (requires [pytest](https://pytest.org)):
+
+```bash
+python3 -m pip install pytest
+python3 -m pytest tests/test_pr_slices.py -q
+python3 -m pytest tests/test_e2e_pr_slices.py -q -m e2e
+```
+
+CI runs both validators and both suites on every pull request and push to `main` (see `.github/workflows/validate.yml`).
 
 To test CLI discovery from a clean temporary directory after the repository is public:
 

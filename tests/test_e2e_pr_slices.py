@@ -52,9 +52,12 @@ def test_e2e_pr_template_renders_and_is_usable():
 @pytest.mark.e2e
 def test_e2e_no_extra_fixture_needed_for_cents_and_audit():
     """E2E placeholder: the repo documents the 201 + cents + audit contract that a real MCDS app would exercise.
-    Here we verify the contract is documented in both SKILL.md and epic template."""
-    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    Since LFG 2.0.0 the skill delegates project-specific contracts (STE, slice
+    tables, domain examples) to project AGENTS.md and PR/epic templates, so the
+    contract must be documented in the epic template; SKILL.md only has to keep
+    teaching the portable boundary-slicing concept."""
     epic = (ROOT / "docs" / "planning" / "epic-slice-template.md").read_text(encoding="utf-8")
     for needle in ["cents", "JournalEntry", "withTransaction"]:
-        assert needle in skill, f"skill missing {needle}"
         assert needle in epic, f"epic template missing {needle}"
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    assert "boundary slices" in skill.lower(), "skill must teach boundary slices"
