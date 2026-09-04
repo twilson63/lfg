@@ -1,6 +1,6 @@
 ---
 name: lfg
-version: "2.1.0"
+version: "2.2.0"
 description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks. Use when the user says lfg or lets-fucking-go, or wants a written plan with per-step acceptance criteria.
 tags:
   - agent-workflows
@@ -41,14 +41,14 @@ At each milestone (`begin`, `plan-approved`, `step-N-done`, `complete`, `blocked
 5. **Implement stepwise.** For each step: read PRD/progress → implement only that step → gather its evidence → update the progress doc (files changed, validation output, criterion status) → evaluate against every criterion → advance only when all pass.
 6. **Repair boundedly.** On a failed criterion (or taste/originality <4 for design-sensitive work): diagnose from the evidence first, record the diagnosis, and produce a revised approach — never a blind retry of the same fix. Escalate to the user only on a true blocker: missing dependency/permission, an ambiguous requirement, or the same failure after 3 distinct replans of that step. Never commit while a step is `repairing`.
 7. **Implementation gate.** Review the actual diff (implementation reviewer subagent, or manually) against the PRD and progress docs. Unmet required criteria or blocking rubric findings → repair the failing step and re-gate.
-8. **Validate.** Run the project's canonical check — discover it from package.json scripts or project AGENTS.md (e.g. `npm run check`, `cargo check`, `pytest -q`). Smoke-check small changes; run the full suite for larger ones. Fix findings and re-run failing validation until green.
-9. **Report.** Concise summary: definition used, implementation summary, files changed, validation run and result, reviewer findings addressed, residual risks and follow-ups. Append the `complete` handoff line and note durable decisions so the next session inherits context.
+8. **Validate.** Run the project's canonical check — discover it from package.json scripts or project AGENTS.md (e.g. `npm run check`, `cargo check`, `pytest -q`). Targeted checks are for iterating inside a step; the full suite runs at least once on the final step. Change size is the wrong axis: repositories carry cross-cutting invariant tests (schema-derived checks, source pins, whole-tree lint) whose expectations derive from repo state, not the diff — a new table, route, or provider row can break one while every feature-local test passes. If the suite is genuinely too slow to run whole, run the invariant/meta-test files for every artifact kind touched and disclose in the report which invariant surfaces were left uncovered. Fix findings and re-run failing validation until green.
+9. **Report.** Concise summary: definition used, implementation summary, files changed, validation run and result — scope stated explicitly (full suite with counts, or named targeted checks plus uncovered invariant surfaces), reviewer findings addressed, residual risks and follow-ups. Append the `complete` handoff line and note durable decisions so the next session inherits context.
 
 Do not edit generated `build/`/`dist/` output; edit sources and rebuild.
 
 ## Multi-layer work: slice PRs by boundary
 
-If an epic spans ≥2 context boundaries (e.g. `db` / `service` / `api` / `ui` / `integration`) or ≥4 files, plan it as boundary slices: each slice gets its own branch, conventional-commit scope (`feat(data)`, `feat(api)`, …), definition of done, and unit + E2E test gates runnable in CI; note inter-slice dependencies in the plan. Collapse to a single PR only when the whole change is <4 files, a couple of days of work, and one scope — and say so in the PR description. PRs: title and body in Conventional Commit form; `BREAKING CHANGE` footer when API contracts change; `Closes #<issue>` / `Part of #<epic>` footers; list each slice's test commands and evidence paths so automated review can verify the gates. Project-specific slice tables and PR checklists belong in that project's AGENTS.md, not here.
+If an epic spans ≥2 context boundaries (e.g. `db` / `service` / `api` / `ui` / `integration`) or ≥4 files, plan it as boundary slices: each slice gets its own branch, conventional-commit scope (`feat(data)`, `feat(api)`, …), definition of done, and unit + E2E test gates runnable in CI; note inter-slice dependencies in the plan. Collapse to a single PR only when the whole change is <4 files, a couple of days of work, and one scope — and say so in the PR description. PRs: title and body in Conventional Commit form; `BREAKING CHANGE` footer when API contracts change; `Closes #<issue>` / `Part of #<epic>` footers; list each slice's test commands and evidence paths so automated review can verify the gates. Per-slice gates are targeted evidence; the full-suite rule (step 8) still applies once on the final slice's final step. Project-specific slice tables and PR checklists belong in that project's AGENTS.md, not here.
 
 ## Commit cadence
 
