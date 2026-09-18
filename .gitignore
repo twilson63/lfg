@@ -14,3 +14,7 @@ __pycache__/
 # Harness-generated files and application symlink
 .pi-subagents/
 skills
+
+# Consumer-side install state. This repo's root is the skill folder, so a
+# committed lock would be part of the tree its own hash is computed over.
+skills-lock.json
