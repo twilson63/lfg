@@ -1,6 +1,6 @@
 ---
 name: lfg
-version: "2.3.0"
+version: "2.4.0"
 description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks. Use when the user says lfg or lets-fucking-go, or wants a written plan with per-step acceptance criteria.
 tags:
   - agent-workflows
@@ -12,6 +12,27 @@ tags:
 # LFG
 
 Run when the user wants an implementation driven by explicit research, a written plan, and a review/repair loop. The loop is bounded: it stops when acceptance criteria are met, a blocker needs the user, or repairs are exhausted. Prefer simple, cohesive, idiomatic changes over clever or sprawling ones.
+
+## Project artifacts bootstrap
+
+Before any task, check four standing artifacts for the repository. These are the
+project's long-lived context — a task loop reads them before planning, and every
+future run, reviewer, or operator inherits them:
+
+| Artifact | Path (default) | What it holds |
+|---|---|---|
+| Architecture | `docs/architecture.md` | The system in project-specific terms: components, data flow, key decisions and why, trust boundaries, non-goals. |
+| Feature map | `docs/features-map.md` | One table row per feature: behaviour, where it lives (source paths), how it is proven (tests, checks). |
+| Developer setup | `docs/development.md` | What to install, how to run locally, test/lint/typecheck commands with expected results, branch/commit conventions. |
+| SRE runbook | `docs/sre.md` | How it is deployed, where logs/alarms/dashboards live, what breaks first, one remediation line per known failure mode. |
+
+Rules:
+
+- **Missing → bootstrap first.** If any artifact is missing and the task touches the area it documents, research the codebase and produce the missing artifact(s) in the task's PR, before implementing the task. A bootstrap artifact must cite real paths and commands discovered in the repo, never invented ones; anything unverifiable is marked `(unverified)` with a note on what would confirm it. Never include secrets in any artifact.
+- **Never fast-path past a missing, load-bearing artifact.** A task whose change depends on undocumented architecture needs the artifact written in the same loop; write the section you need, not a whole book — a 40-line honest map beats a 400-line generic one.
+- **Stale → update in the same PR.** While implementing, if the change makes an existing artifact wrong (renamed component, new service, changed test command), update the affected section in the same PR and say so in the report. Do not rewrite untouched sections.
+- **Present and still accurate → cite it.** The plan references the artifact paths it used. When the repository has its own conventions for these paths (e.g. an existing `ARCHITECTURE.md`), use them instead of the defaults and map the roles.
+- **Forge pipelines note:** when the repository is built or reviewed by automation (forge-dev builders, forge-pr reviewers), these artifacts are the standing context those agents lack; keep them accurate in the repo rather than in external tool config.
 
 ## Triage first
 
@@ -34,7 +55,7 @@ At each milestone (`begin`, `plan-approved`, `step-N-done`, `complete`, `blocked
 
 ## Workflow
 
-1. **Inspect.** Check branch and working tree; preserve unrelated changes and untracked files; read project instructions and the files/docs relevant to the request. Append the `begin` handoff line.
+1. **Inspect.** Check branch and working tree; preserve unrelated changes and untracked files; read project instructions and the files/docs relevant to the request — including the four standing project artifacts (bootstrap any that are missing and load-bearing, per *Project artifacts bootstrap*). Append the `begin` handoff line.
 2. **Define.** Before any code, state the core concept in project-specific terms: what it means here, what it explicitly does not mean, security/privacy implications, measurable success criteria.
 3. **Plan.** Produce (via the planner subagent when available) a plan where **every step has acceptance criteria and the concrete evidence required to prove each** — test command, diff inspection, screenshot, log excerpt, reviewer note, or manual check. Include definition of done, coverage of every user requirement and constraint, open questions resolved or explicitly marked as user-blockers, non-goals, validation commands, and taste/originality criteria for design-sensitive work. Write it into the PRD and initialize the progress doc.
 4. **Plan gate.** Have the plan reviewed (plan reviewer subagent, or manually). Implementation may not start until: every step has acceptance criteria + required evidence; definition of done exists; requirements and open questions are addressed; both docs exist; and the review has no `fail` or unresolved `uncertain` findings (including the Jev plan gate, if available). Then append `plan-approved`.
@@ -42,13 +63,15 @@ At each milestone (`begin`, `plan-approved`, `step-N-done`, `complete`, `blocked
 6. **Repair boundedly.** On a failed criterion (or taste/originality <4 for design-sensitive work): diagnose from the evidence first, record the diagnosis, and produce a revised approach — never a blind retry of the same fix (the Jev repair gate, if available, checks this). Escalate to the user only on a true blocker: missing dependency/permission, an ambiguous requirement, or the same failure after 3 distinct replans of that step. Never commit while a step is `repairing`.
 7. **Implementation gate.** Review the actual diff (implementation reviewer subagent, or manually) against the PRD and progress docs, re-running the Jev evidence gate over the final evidence if available. Unmet required criteria, unresolved `uncertain` verdicts, or blocking rubric findings → repair the failing step and re-gate.
 8. **Validate.** Run the project's canonical check — discover it from package.json scripts or project AGENTS.md (e.g. `npm run check`, `cargo check`, `pytest -q`). Targeted checks are for iterating inside a step; the full suite runs at least once on the final step. Change size is the wrong axis: repositories carry cross-cutting invariant tests (schema-derived checks, source pins, whole-tree lint) whose expectations derive from repo state, not the diff — a new table, route, or provider row can break one while every feature-local test passes. If the suite is genuinely too slow to run whole, run the invariant/meta-test files for every artifact kind touched and disclose in the report which invariant surfaces were left uncovered. Fix findings and re-run failing validation until green.
-9. **Report.** Concise summary: definition used, implementation summary, files changed, validation run and result — scope stated explicitly (full suite with counts, or named targeted checks plus uncovered invariant surfaces), reviewer findings addressed, residual risks and follow-ups. Append the `complete` handoff line and note durable decisions so the next session inherits context.
+9. **Report.** Concise summary: definition used, implementation summary, files changed, validation run and result — scope stated explicitly (full suite with counts, or named targeted checks plus uncovered invariant surfaces), reviewer findings addressed, residual risks and follow-ups. State the standing-artifact outcome: bootstrapped (which), updated (which sections), or cited (paths). Append the `complete` handoff line and note durable decisions so the next session inherits context.
 
 Do not edit generated `build/`/`dist/` output; edit sources and rebuild.
 
 ## Multi-layer work: slice PRs by boundary
 
 If an epic spans ≥2 context boundaries (e.g. `db` / `service` / `api` / `ui` / `integration`) or ≥4 files, plan it as boundary slices: each slice gets its own branch, conventional-commit scope (`feat(data)`, `feat(api)`, …), definition of done, and unit + E2E test gates runnable in CI; note inter-slice dependencies in the plan. Collapse to a single PR only when the whole change is <4 files, a couple of days of work, and one scope — and say so in the PR description. PRs: title and body in Conventional Commit form; `BREAKING CHANGE` footer when API contracts change; `Closes #<issue>` / `Part of #<epic>` footers; list each slice's test commands and evidence paths so automated review can verify the gates. Per-slice gates are targeted evidence; the full-suite rule (step 8) still applies once on the final slice's final step. Project-specific slice tables and PR checklists belong in that project's AGENTS.md, not here.
+
+**Bootstrap slices.** A bootstrap of missing standing artifacts (architecture, feature map, dev setup, SRE runbook) large enough for its own review is its own slice/PR — usually the first one, so later slices cite it and its review establishes shared vocabulary. Task work must not land on a branch that leaves the artifact half-written; either finish the section the task needs or omit the artifact and disclose.
 
 ## Commit cadence
 
