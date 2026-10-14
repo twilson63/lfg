@@ -9,6 +9,90 @@ skill = root / "SKILL.md"
 text = skill.read_text(encoding="utf-8")
 errors = []
 
+# This is a procedural contract, not a claim that static checks prove model
+# behavior. Keep safety and gate rules in their owning sections, so a keyword
+# elsewhere cannot conceal an accidentally truncated or weakened instruction.
+def validate_contract(text):
+    errors = []
+    if "\u2014" in text:
+        errors.append("SKILL.md must contain zero em dashes.")
+    headings = list(re.finditer(r"^## (.+)$", text, re.MULTILINE))
+    sections = {
+        match.group(1): text[match.end():headings[i + 1].start() if i + 1 < len(headings) else len(text)]
+        for i, match in enumerate(headings)
+    }
+    expected = [
+        "Project artifacts bootstrap", "Triage first", "Artifacts", "Workflow",
+        "Multi-layer work: slice PRs by boundary", "Commit cadence",
+        "Subagent roles", "Optional: Jev judge gates",
+    ]
+    if [match.group(1) for match in headings] != expected:
+        errors.append("SKILL.md must preserve all required sections in workflow order.")
+    steps = re.findall(r"^(\d+)\. \*\*([^*]+)\*\*", sections.get("Workflow", ""), re.MULTILINE)
+    labels = [label for _, label in steps]
+    if [number for number, _ in steps] != [str(n) for n in range(1, 10)] or labels != [
+        "Inspect.", "Define.", "Plan.", "Plan gate.", "Implement stepwise.",
+        "Repair boundedly.", "Implementation gate.", "Validate.", "Report.",
+    ]:
+        errors.append("SKILL.md must preserve the nine ordered workflow steps.")
+    # Do not turn the per-step, same-failure escalation into a global budget.
+    if re.search(r"(?:burned|after|exhausted)\s+(?:three|3)\s+repair attempts", text, re.IGNORECASE):
+        errors.append("SKILL.md must not impose a global three-repair stopping rule.")
+    rules = [
+        ("load-bearing artifacts before fast path", "Project artifacts bootstrap", r"never fast-path past a missing, load-bearing artifact"),
+        ("triage size limits", "Triage first", r"(?:<=|≤)\s*30 lines across (?:<=|≤)\s*3 files"),
+        ("process-boundary protection", "Triage first", r"process boundaries"),
+        ("authentication protection", "Triage first", r"authentication"),
+        ("authorization protection", "Triage first", r"authorization"),
+        ("privilege-boundary protection", "Triage first", r"privilege"),
+        ("input validation protection", "Triage first", r"input validation"),
+        ("path validation protection", "Triage first", r"path validation"),
+        ("deserialization protection", "Triage first", r"deserialization"),
+        ("shell execution protection", "Triage first", r"subprocess or shell execution"),
+        ("secret handling protection", "Triage first", r"secret handling"),
+        ("plan before implementation", "Workflow", r"implementation does not start until"),
+        ("plan rejects unresolved findings", "Workflow", r"review has no `fail` or unresolved `uncertain` findings"),
+        ("stepwise evidence gate", "Workflow", r"advance only when everything passes"),
+        ("implementation rejects unresolved findings", "Workflow", r"unmet required criteria, unresolved `uncertain` verdicts, or blocking rubric findings"),
+        ("relative artifact links", "Artifacts", r"relative cross-links"),
+        ("self-contained artifacts", "Artifacts", r"no external scripts, styles, or fetches"),
+        ("artifact privacy", "Artifacts", r"never (?:put|store) secrets, keys, prompt contents, or raw command output"),
+        ("per-step failure escalation", "Workflow", r"same failure after (?:three|3) distinct replans of that step"),
+        ("no mid-repair commits", "Workflow", r"(?:don't|never) commit while a step is `repairing`"),
+        ("full-suite validation", "Workflow", r"full suite runs at least once on the final step"),
+        ("generated-output protection", "Workflow", r"(?:never|do not) edit generated `build/`/`dist/` output"),
+        ("slice test gates", "Multi-layer work: slice PRs by boundary", r"unit (?:plus|\+) E2E test gates"),
+        ("slice commit convention", "Multi-layer work: slice PRs by boundary", r"title and body in conventional commit form"),
+        ("commit authorization", "Commit cadence", r"(?:only commit|commit only) if the user asked for commits, a branch, or a PR"),
+        ("read-only planner", "Subagent roles", r"never edits files or docs"),
+        ("reviewer edit authorization", "Subagent roles", r"never edits unless explicitly asked"),
+        ("uncertainty rule", "Subagent roles", r"`uncertain` is never a pass"),
+        ("uncertainty resolution", "Subagent roles", r"resolves each `uncertain` before the gate opens"),
+        ("taste repair threshold", "Subagent roles", r"score below 4 triggers a repair pass"),
+        ("key presence only", "Optional: Jev judge gates", r"test for presence only"),
+        ("key confidentiality", "Optional: Jev judge gates", r"never print or store it"),
+        ("no-egress fallback", "Optional: Jev judge gates", r"project forbids sending content to external services"),
+        ("missing-key fallback", "Optional: Jev judge gates", r"if the key is (?:missing|absent),.*?skip Jev"),
+        ("API failure fallback", "Optional: Jev judge gates", r"errors(?: out)? or times out"),
+        ("optional judge fallback", "Optional: Jev judge gates", r"never block on Jev"),
+        ("installed TypeSafe instructions", "Optional: Jev judge gates", r"if a TypeSafe skill is installed, load it and follow the live docs"),
+        ("judge only tightens gates", "Optional: Jev judge gates", r"never upgrades a `fail`, overrides a failing command, or replaces a reviewer"),
+        ("triage probability threshold", "Optional: Jev judge gates", r"any answer ≥ 0\.3"),
+        ("plan probability threshold", "Optional: Jev judge gates", r"Noul (?:<|below)\s*0\.7"),
+        ("evidence confidence threshold", "Optional: Jev judge gates", r"confidence ≥ 0\.8"),
+        ("repair probability threshold", "Optional: Jev judge gates", r"(?:<|below)\s*0\.5"),
+        ("judge state privacy", "Optional: Jev judge gates", r"no secrets, user data, raw command output, or prompt contents"),
+    ]
+    for label, heading, pattern in rules:
+        if not re.search(pattern, sections.get(heading, ""), re.IGNORECASE):
+            errors.append(f"SKILL.md missing contract rule: {label}.")
+    for name in ("Triage", "Plan", "Evidence", "Repair"):
+        if f"**{name} gate**" not in sections.get("Optional: Jev judge gates", ""):
+            errors.append(f"SKILL.md missing Jev gate: {name}.")
+    return errors
+
+errors.extend(validate_contract(text))
+
 if not text.startswith("---\n"):
     errors.append("SKILL.md must start with YAML frontmatter.")
 else:
