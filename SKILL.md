@@ -1,6 +1,6 @@
 ---
 name: lfg
-version: "2.4.0"
+version: "2.5.0"
 description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks. Use when the user says lfg or lets-fucking-go, or wants a written plan with per-step acceptance criteria.
 tags:
   - agent-workflows
@@ -36,9 +36,49 @@ Hard rules:
 
 ## Triage first
 
-- **Full loop.** The default. Use this for anything broad, ambiguous, design-sensitive, or touching security. Research -> define -> plan -> review the plan -> build step by step -> evaluate -> review the build -> repair -> report. You get a PRD and a progress doc. Yes, it's work. That's the point.
-- **Fast path.** Only when ALL of these are true: roughly <=30 lines across <=3 files, no trust boundaries, no UX/copy/architecture impact, and a dead-obvious validation command. Skip the docs, make the change, validate it, do one explicit self-review against what the user asked for, and say you took the fast path. If Jev is around, run its triage gate first.
-- Never fast-path anything that crosses a trust boundary: authentication, authorization, privilege or process boundaries, input validation, path validation, deserialization, subprocess or shell execution, secret handling. When in doubt, use the full loop.
+Use the full loop for broad, ambiguous, design-sensitive, or security-sensitive work. For changes that are small in risk and scope, use the fast path below. Do not decide based on line or file count alone. Several files can form one local change; one line can cross a trust boundary.
+
+### Fast-path eligibility
+
+Use fast path only when ALL of these are true:
+
+- The requested outcome and expected behavior are clear and checkable without substantial discovery or an unresolved design decision.
+- The change is localized and reasonably reversible. It does not alter architecture, shared contracts, or behavior across unrelated areas.
+- The change does not touch a security or trust boundary: authentication, authorization, privilege or process boundaries, input validation, path validation, deserialization, subprocess or shell execution, secret handling, approvals, IPC/preload bridges, browser risk routing, or untrusted Markdown/file rendering.
+- There is a concrete acceptance check: a focused test, a project check, or an observable manual check.
+
+A specified, contained UI or copy change can qualify. An open-ended redesign cannot. Several files do not disqualify a change if they form one localized, low-risk change. Never fast-path past a missing, load-bearing artifact; the bootstrap rules still apply. Fast path does not bypass approvals or required project checks. If Jev is available, run its triage gate first.
+
+### Fast-path procedure
+
+1. State the intended change in one sentence before implementation.
+2. Name the acceptance check and its observable expected result before implementation.
+3. Make the smallest coherent change.
+4. Run the relevant focused test or check. Add broader validation when shared behavior or project invariants require it. The full-suite rule in Workflow step 8 still applies to fast path.
+5. Review the diff against the request and acceptance check; confirm no unrelated changes slipped in.
+6. Report that you used fast path, what changed, what you checked, actual results, and anything not checked. Never claim an unrun or failing check passed. If no useful automated check exists, record the manual check and its actual result.
+
+Skip task PRD/progress HTML, planner, and plan-review gate. Standing project-artifact requirements still apply.
+
+### Escalation
+
+Switch to the full loop if discovery reveals broader impact, ambiguous requirements, unresolved design decisions, unclear validation, or risk the fast path cannot address. Failed checks must be diagnosed and repaired, never waved through; escalate when they remain unresolved or reveal broader impact. Never fast-path security-sensitive boundaries or shared-contract changes. When unsure, use the full loop.
+
+### Evaluation rubric
+
+Evaluate work quality AND workflow choice. Speed alone is not a pass. Compare baseline and candidate on the same starting state and acceptance checks, using these representative task categories:
+
+- A straightforward bug fix with an obvious focused test.
+- A test-only change.
+- A documentation-only change.
+- A specified, localized UI or copy change.
+- A multi-file change that remains localized and low-risk.
+- A deceptively small security, trust-boundary, or shared-contract change.
+- A task whose unclear requirements, discovered scope, or unresolved failed checks require escalation.
+
+For each task, record pass/fail/uncertain for correct routing and escalation, intent plus a checkable result stated before edits, acceptance criteria met, relevant checks actually run and accurately reported, and diff review for request coverage and unrelated changes. Uncertain is not a pass. Track quality failures, missed escalations, unnecessary full-loop use, and elapsed time or tool calls. A speed gain fails the rubric if it skips a needed check or ships an incorrect change.
+
+Static contract tests protect these instructions; routing-only model checks test policy interpretation. Neither proves completed-task quality or speed. Use actual isolated task runs with acceptance evidence before claiming end-to-end improvement. See [the evaluation protocol](docs/evaluation/fast-path.md) for a repeatable comparison.
 
 ## Artifacts
 
@@ -77,7 +117,7 @@ Never edit generated `build/`/`dist/` output. Edit sources and rebuild.
 
 ## Multi-layer work: slice PRs by boundary
 
-If an epic crosses two or more context boundaries (think `db` / `service` / `api` / `ui` / `integration`) or touches four or more files, plan it as boundary slices. Each slice gets its own branch, a conventional-commit scope (`feat(data)`, `feat(api)`, etc.), a definition of done, and unit plus E2E test gates that can run in CI. Note inter-slice dependencies in the plan. Only collapse to a single PR when the whole change is under four files, a couple days of work, and one scope. Say so in the PR description if you do.
+If an epic crosses two or more context boundaries (think `db` / `service` / `api` / `ui` / `integration`), plan it as boundary slices. File count alone does not require slices: a localized, low-risk multi-file change that meets fast-path eligibility can stay in one PR. Each slice gets its own branch, a conventional-commit scope (`feat(data)`, `feat(api)`, etc.), a definition of done, and unit plus E2E test gates that can run in CI. Note inter-slice dependencies in the plan. A full-loop change can stay in one PR when it is localized, a couple days of work, and one coherent scope. Explain that decision in the PR description; never use it to hide independent boundary work.
 
 PR format: title and body in Conventional Commit form. `BREAKING CHANGE` footer when API contracts shift. `Closes #<issue>` / `Part of #<epic>` footers. List each slice's test commands and evidence paths so automated review can verify the gates. Per-slice gates are targeted evidence, but the full-suite rule in step 8 still applies once on the final slice's final step. Project-specific slice tables and PR checklists belong in that project's AGENTS.md, not here.
 
@@ -111,7 +151,7 @@ Why Jev matters: the author and reviewer subagents are usually the same model, s
 
 One request per gate. Ask all of that gate's questions together over one small `state`:
 
-- **Triage gate** (before any fast path). State: the user's request and the files to be touched. One Noul per trust-boundary category from Triage ("does the change touch …"), plus one asking whether the change requires a design decision about product behavior, UI, user-facing wording, or architecture. Use `false` criteria for mechanical changes (typo, version bump, small bug fix), because Jev reads literally and might flag every README edit as "copy". Any answer ≥ 0.3 means full loop. Jev can force the full loop, never the fast path.
+- **Triage gate** (before any fast path). State: the user's request and the files to be touched. One Noul per security/trust-boundary category from Triage ("does the change touch …"), one for architecture/shared-contract or unrelated-area impact, and one for unresolved design decisions or unclear acceptance checks. A specified, contained UI or copy change with a concrete check is not an unresolved design decision. Use `false` criteria for such changes and mechanical fixes; use `true` criteria for open-ended redesigns. Missing load-bearing artifacts still require the full loop. Any answer ≥ 0.3 means full loop. Jev can force the full loop, never the fast path.
 - **Plan gate** (step 4). State: `{requirements: [...], steps: [{id, criteria, evidence}]}`. Per step, two Nouls: is every criterion in `steps[i].criteria` an observable outcome rather than an intention; does `steps[i].evidence` name a concrete, checkable artifact. Per requirement, a Choice over the step ids plus `none`: which step covers `requirements[j]`. A Noul below 0.7 means `uncertain`, resolved under the same rule. `none` means `fail` on goal coverage.
 - **Evidence gate** (steps 5 and 7). State: `{criteria: [{criterion, evidence}]}`, where evidence is the summarized artifact itself (command and result line, diff summary), not your claim that it passed. Per criterion, a Choice: `proves` / `contradicts` / `insufficient`. `proves` with confidence ≥ 0.8 corroborates the pass. `contradicts` means `fail`. Anything else means `uncertain`, resolved under the `uncertain` rule in Subagent roles (re-ask Jev after gathering stronger evidence).
 - **Repair gate** (step 6). State: `{failure, previous_approach, revised_approach}`. Noul: is `revised_approach` a materially different approach rather than the same fix retried with minor changes. Below 0.5 means replan before spending the attempt.
@@ -126,4 +166,4 @@ POST https://api.typesafe.ai/v1/systemone   (Authorization: Bearer $TYPESAFE_API
 
 Answers return under the same ids: Noul gives `noul` (probability of yes); Choice gives `choice`, `probabilities`, `confidence`.
 
-Question rules: Jev reads literally, so write the exact condition and ask one judgment per question. Reference state by backticked path. Send only the fields a question needs, never the whole PRD or diff. Keep counts, line/file thresholds, exit codes, and date math in code. State follows the artifact rule: summaries only. No secrets, user data, raw command output, or prompt contents. The thresholds above are conservative starting points, not tuned values. Record each gate's question ids, answers, and the response `model` in the progress doc, and state in the report whether Jev gates ran.
+Question rules: Jev reads literally, so write the exact condition and ask one judgment per question. Reference state by backticked path. Send only the fields a question needs, never the whole PRD or diff. Keep counts, exit codes, and date math in code. State follows the artifact rule: summaries only. No secrets, user data, raw command output, or prompt contents. The thresholds above are conservative starting points, not tuned values. Record each gate's question ids, answers, and the response `model` in the progress doc, and state in the report whether Jev gates ran.

@@ -1,0 +1,36 @@
+{
+  "scope": "optional final evidence gate; summary judgments, not independent command execution",
+  "model": "jev-1.14.0",
+  "answers": {
+    "e0": {
+      "type": "choice",
+      "choice": "proves",
+      "confidence": 1.0,
+      "probabilities": {
+        "proves": 1.0,
+        "contradicts": 0.0,
+        "insufficient": 0.0
+      }
+    },
+    "e1": {
+      "type": "choice",
+      "choice": "proves",
+      "confidence": 0.97,
+      "probabilities": {
+        "proves": 0.98,
+        "contradicts": 0.01,
+        "insufficient": 0.01
+      }
+    },
+    "e2": {
+      "type": "choice",
+      "choice": "proves",
+      "confidence": 1.0,
+      "probabilities": {
+        "proves": 1.0,
+        "contradicts": 0.0,
+        "insufficient": 0.0
+      }
+    }
+  }
+}

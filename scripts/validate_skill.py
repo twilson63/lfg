@@ -40,7 +40,23 @@ def validate_contract(text):
         errors.append("SKILL.md must not impose a global three-repair stopping rule.")
     rules = [
         ("load-bearing artifacts before fast path", "Project artifacts bootstrap", r"never fast-path past a missing, load-bearing artifact"),
-        ("triage size limits", "Triage first", r"(?:<=|≤)\s*30 lines across (?:<=|≤)\s*3 files"),
+        ("risk-based triage", "Triage first", r"do not decide based on line or file count alone"),
+        ("all-of eligibility", "Triage first", r"only when ALL of these are true"),
+        ("clear checkable outcome", "Triage first", r"clear and checkable without substantial discovery"),
+        ("localized reversible scope", "Triage first", r"localized and reasonably reversible"),
+        ("shared-contract protection", "Triage first", r"does not alter architecture, shared contracts, or behavior across unrelated areas"),
+        ("concrete acceptance check", "Triage first", r"concrete acceptance check"),
+        ("specified UI/copy eligibility", "Triage first", r"specified, contained UI or copy change can qualify"),
+        ("multi-file eligibility", "Triage first", r"several files do not disqualify a change"),
+        ("fast-path validation scope", "Triage first", r"full-suite rule in Workflow step 8 still applies to fast path"),
+        ("fast-path honest evidence", "Triage first", r"never claim an unrun or failing check passed"),
+        ("fast-path escalation", "Triage first", r"switch to the full loop if discovery reveals broader impact"),
+        ("unresolved-check escalation", "Triage first", r"escalate when they remain unresolved or reveal broader impact"),
+        ("fast-path safety metrics", "Triage first", r"quality failures, missed escalations, unnecessary full-loop use"),
+        ("evaluation evidence limits", "Triage first", r"neither proves completed-task quality or speed"),
+        ("slice-count alignment", "Multi-layer work: slice PRs by boundary", r"file count alone does not require slices"),
+        ("Jev copy alignment", "Optional: Jev judge gates", r"specified, contained UI or copy change with a concrete check is not an unresolved design decision"),
+        ("Jev shared-contract check", "Optional: Jev judge gates", r"one for architecture/shared-contract or unrelated-area impact"),
         ("process-boundary protection", "Triage first", r"process boundaries"),
         ("authentication protection", "Triage first", r"authentication"),
         ("authorization protection", "Triage first", r"authorization"),
@@ -86,6 +102,29 @@ def validate_contract(text):
     for label, heading, pattern in rules:
         if not re.search(pattern, sections.get(heading, ""), re.IGNORECASE):
             errors.append(f"SKILL.md missing contract rule: {label}.")
+    triage = sections.get("Triage first", "")
+    subsections = re.split(r"^### ", triage, flags=re.MULTILINE)
+    sub = {part.split("\n", 1)[0]: part.partition("\n")[2] for part in subsections[1:]}
+    if list(sub) != ["Fast-path eligibility", "Fast-path procedure", "Escalation", "Evaluation rubric"]:
+        errors.append("SKILL.md missing ordered fast-path subsections.")
+    procedure = sub.get("Fast-path procedure", "")
+    if re.findall(r"^(\d+)\. ", procedure, re.MULTILINE) != list("123456"):
+        errors.append("SKILL.md must preserve the six ordered fast-path actions.")
+    for label, pattern in [
+        ("intent before edits", r"1\. State the intended change.*before implementation"),
+        ("acceptance before edits", r"2\. Name the acceptance check.*before implementation"),
+        ("minimal coherent change", r"3\. Make the smallest coherent change"),
+        ("run relevant checks", r"4\. Run the relevant focused test or check"),
+        ("diff self-review", r"5\. Review the diff.*no unrelated changes"),
+        ("actual outcome report", r"6\. Report.*actual results, and anything not checked"),
+    ]:
+        if not re.search(pattern, procedure):
+            errors.append(f"SKILL.md missing fast-path action: {label}.")
+    rubric = sub.get("Evaluation rubric", "")
+    for category in ["bug fix", "test-only", "documentation-only", "UI or copy", "multi-file",
+                     "security, trust-boundary, or shared-contract", "unresolved failed checks"]:
+        if category not in rubric:
+            errors.append(f"SKILL.md missing evaluation category: {category}.")
     for name in ("Triage", "Plan", "Evidence", "Repair"):
         if f"**{name} gate**" not in sections.get("Optional: Jev judge gates", ""):
             errors.append(f"SKILL.md missing Jev gate: {name}.")
