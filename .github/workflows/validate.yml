@@ -22,7 +22,7 @@ jobs:
         run: python3 scripts/validate_skill.py
       - name: Validate PR slice planning invariants
         run: python3 scripts/validate_pr_slices.py
-      - name: Unit tests (automated pr-review gate)
-        run: python3 -m pytest tests/test_pr_slices.py -q
+      - name: Unit and contract tests (automated pr-review gate)
+        run: python3 -m pytest -q --strict-markers -m "not e2e"
       - name: E2E tests (automated pr-review gate)
         run: python3 -m pytest tests/test_e2e_pr_slices.py -q -m e2e

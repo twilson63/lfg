@@ -80,7 +80,29 @@ def _validate_candidate(root, text):
      "Stop after three repair attempts.", "global three-repair"),
     ("Never fast-path past a missing, load-bearing artifact",
      "Skip a missing, load-bearing artifact", "load-bearing artifacts"),
-    ("<=30 lines across <=3 files", "<=300 lines across <=3 files", "triage size limits"),
+    ("Do not decide based on line or file count alone", "Decide based only on file count", "risk-based triage"),
+    ("only when ALL of these are true", "when any of these are true", "all-of eligibility"),
+    ("clear and checkable without substantial discovery", "mostly clear", "clear checkable outcome"),
+    ("localized and reasonably reversible", "quick to implement", "localized reversible scope"),
+    ("does not alter architecture, shared contracts, or behavior across unrelated areas", "may alter shared contracts", "shared-contract protection"),
+    ("concrete acceptance check", "vague review", "concrete acceptance check"),
+    ("specified, contained UI or copy change can qualify", "all UI changes are excluded", "specified UI/copy eligibility"),
+    ("Several files do not disqualify a change", "Several files disqualify a change", "multi-file eligibility"),
+    ("1. State the intended change", "1. Consider the change", "intent before edits"),
+    ("2. Name the acceptance check", "2. Consider a check", "acceptance before edits"),
+    ("3. Make the smallest coherent change", "3. Rewrite freely", "minimal coherent change"),
+    ("4. Run the relevant focused test or check", "4. Assume tests pass", "run relevant checks"),
+    ("5. Review the diff", "5. Skip the diff", "diff self-review"),
+    ("6. Report that you used fast path", "6. Omit the result", "actual outcome report"),
+    ("6. Report that you used fast path", "7. Report that you used fast path", "six ordered fast-path actions"),
+    ("Never claim an unrun or failing check passed", "Assume unrun checks pass", "fast-path honest evidence"),
+    ("Switch to the full loop if discovery reveals broader impact", "Stay in fast path regardless of discovery", "fast-path escalation"),
+    ("escalate when they remain unresolved or reveal broader impact", "ignore unresolved checks", "unresolved-check escalation"),
+    ("quality failures, missed escalations, unnecessary full-loop use", "only speed", "fast-path safety metrics"),
+    ("Neither proves completed-task quality or speed", "Routing proves task quality", "evaluation evidence limits"),
+    ("File count alone does not require slices", "Four files always require slices", "slice-count alignment"),
+    ("A specified, contained UI or copy change with a concrete check is not an unresolved design decision", "Every wording edit is an unresolved design decision", "Jev copy alignment"),
+    ("one for architecture/shared-contract or unrelated-area impact", "one for file count", "Jev shared-contract check"),
     ("privilege or process boundaries", "privilege boundaries", "process-boundary protection"),
     ("authentication, authorization", "auth, authorization", "authentication protection"),
     ("authentication, authorization", "authentication, permissions", "authorization protection"),
@@ -169,3 +191,25 @@ def test_jev_api_example_preserved():
     assert len(example) == 1
     assert hashlib.sha256(example[0].encode()).hexdigest() == (
         "1f4ebeb63bd7ac7726e6d53085c291893b6300cb7514275699a8b60e021e7861")
+
+
+@pytest.mark.parametrize("category", [
+    "A straightforward bug fix", "A test-only change", "A documentation-only change",
+    "A specified, localized UI or copy change", "A multi-file change",
+    "A deceptively small security, trust-boundary, or shared-contract change",
+    "A task whose unclear requirements, discovered scope, or unresolved failed checks",
+])
+def test_contract_rejects_missing_evaluation_category(contract_repo, category):
+    text = SKILL.read_text(encoding="utf-8")
+    assert category in text
+    result = _validate_candidate(contract_repo, text.replace(category, "Omitted task", 1))
+    assert result.returncode == 1
+    assert "missing evaluation category" in result.stdout
+
+
+def test_contract_does_not_require_old_size_limits():
+    text = SKILL.read_text(encoding="utf-8")
+    triage = text.split("## Triage first", 1)[1].split("## Artifacts", 1)[0]
+    assert "30 lines" not in triage and "3 files" not in triage
+    assert "no UX/copy/architecture impact" not in triage
+    assert _run_validator("validate_skill.py").returncode == 0

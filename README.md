@@ -35,13 +35,13 @@ For broad, ambiguous, design-sensitive, or security-sensitive work, the skill re
 5. Focused implementation loops with evidence per criterion and bounded repair: diagnose, replan, then retry.
 6. An implementation review against the plan and validation output.
 7. A handoff file with milestone checkpoints, so work survives compaction, re-entry, or a new session.
-8. Boundary-sliced PRs for multi-layer epics (two or more context boundaries, or four or more files), each slice with its own definition of done and test gates.
+8. Boundary-sliced PRs for multi-layer epics crossing two or more context boundaries, each slice with its own definition of done and test gates. File count alone does not force slicing.
 
-Small, obvious, low-risk changes can use its documented fast path.
+Clear, localized, reversible, low-risk changes can use its documented fast path, including specified UI/copy edits and multi-file changes. Security boundaries, shared-contract changes, unresolved design decisions, and missing load-bearing project artifacts still require the full loop. See the [fast-path evaluation protocol](docs/evaluation/fast-path.md) for the rubric and the limits of routing-only checks.
 
 ## Versioning
 
-`SKILL.md` follows semver. The current version is **2.3.0**, which adds optional [Jev](https://docs.typesafe.ai) judge gates — an independent, calibrated second opinion at the triage, plan, evidence, and repair gates, used only when `TYPESAFE_API_KEY` is present and never able to loosen a gate. It also closes a gap in the reviewer gates: an `uncertain` verdict is never a pass and must be resolved or escalated before a gate opens. v2.2.0 added the full-suite validation rule. v2.1.0 keeps the skill portable: it replaces project-specific security examples with general trust-boundary categories, makes commits conditional on the user asking for them, and treats the force-directed flow diagram as optional. Compared with 1.x, v2.0.0 compresses the skill for models that follow complex instructions well, moves project-specific conventions (slice tables, PR checklists, STE rules) into project AGENTS.md and PR templates, replaces harness-specific checkpointing with the portable handoff file, and re-scopes the repository validators to assert only portable invariants.
+`SKILL.md` follows semver. The current version is **2.5.0**, which replaces line/file limits with risk-based fast-path eligibility, an explicit acceptance/check/review procedure, escalation rules, and a task-evaluation rubric. It preserves v2.4.0 project-artifact bootstrap and reconciles Jev triage and PR slicing with the new eligibility. v2.3.0 added optional [Jev](https://docs.typesafe.ai) judge gates — an independent, calibrated second opinion at the triage, plan, evidence, and repair gates, used only when `TYPESAFE_API_KEY` is present and never able to loosen a gate. It also closes a gap in the reviewer gates: an `uncertain` verdict is never a pass and must be resolved or escalated before a gate opens. v2.2.0 added the full-suite validation rule. v2.1.0 keeps the skill portable: it replaces project-specific security examples with general trust-boundary categories, makes commits conditional on the user asking for them, and treats the force-directed flow diagram as optional. Compared with 1.x, v2.0.0 compresses the skill for models that follow complex instructions well, moves project-specific conventions (slice tables, PR checklists, STE rules) into project AGENTS.md and PR templates, replaces harness-specific checkpointing with the portable handoff file, and re-scopes the repository validators to assert only portable invariants.
 
 ## What it does not do
 
@@ -73,11 +73,14 @@ Run the test suites (requires [pytest](https://pytest.org)):
 
 ```bash
 python3 -m pip install pytest
-python3 -m pytest tests/test_pr_slices.py -q
+python3 -m pytest --strict-markers -q
+
+# Exact CI selections:
+python3 -m pytest --strict-markers -q -m "not e2e"
 python3 -m pytest tests/test_e2e_pr_slices.py -q -m e2e
 ```
 
-CI runs both validators and both suites on every pull request and push to `main` (see `.github/workflows/validate.yml`).
+CI runs both validators, all unit/contract tests, and the e2e smoke suite on every pull request and push to `main` (see `.github/workflows/validate.yml`).
 
 To test CLI discovery from a clean temporary directory after the repository is public:
 

@@ -1,0 +1,221 @@
+{
+  "scope": "semantic routing only; no task implementation, quality or speed measurement",
+  "model": "jev-1.14.0",
+  "case_count": 11,
+  "confidence_threshold": 0.8,
+  "results": {
+    "baseline": {
+      "cases": [
+        {
+          "id": "bug",
+          "question_id": "baseline_bug",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 0.94,
+          "status": "pass"
+        },
+        {
+          "id": "test_only",
+          "question_id": "baseline_test_only",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 0.98,
+          "status": "pass"
+        },
+        {
+          "id": "docs",
+          "question_id": "baseline_docs",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 0.9,
+          "status": "pass"
+        },
+        {
+          "id": "specified_copy",
+          "question_id": "baseline_specified_copy",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 0.94,
+          "status": "pass"
+        },
+        {
+          "id": "local_multi_file",
+          "question_id": "baseline_local_multi_file",
+          "expected": "fast_path",
+          "choice": "full_loop",
+          "confidence": 0.44,
+          "status": "uncertain"
+        },
+        {
+          "id": "tiny_security",
+          "question_id": "baseline_tiny_security",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "tiny_contract",
+          "question_id": "baseline_tiny_contract",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "ambiguous",
+          "question_id": "baseline_ambiguous",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "discovered_scope",
+          "question_id": "baseline_discovered_scope",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "unresolved_check",
+          "question_id": "baseline_unresolved_check",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "missing_artifact",
+          "question_id": "baseline_missing_artifact",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        }
+      ],
+      "correct": 10,
+      "uncertain": 1,
+      "missed_escalations": 0,
+      "unnecessary_full_loop": 1,
+      "policy_agreement": 9
+    },
+    "candidate": {
+      "cases": [
+        {
+          "id": "bug",
+          "question_id": "candidate_bug",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "test_only",
+          "question_id": "candidate_test_only",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "docs",
+          "question_id": "candidate_docs",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 0.98,
+          "status": "pass"
+        },
+        {
+          "id": "specified_copy",
+          "question_id": "candidate_specified_copy",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "local_multi_file",
+          "question_id": "candidate_local_multi_file",
+          "expected": "fast_path",
+          "choice": "fast_path",
+          "confidence": 0.98,
+          "status": "pass"
+        },
+        {
+          "id": "tiny_security",
+          "question_id": "candidate_tiny_security",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "tiny_contract",
+          "question_id": "candidate_tiny_contract",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "ambiguous",
+          "question_id": "candidate_ambiguous",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "discovered_scope",
+          "question_id": "candidate_discovered_scope",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "unresolved_check",
+          "question_id": "candidate_unresolved_check",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        },
+        {
+          "id": "missing_artifact",
+          "question_id": "candidate_missing_artifact",
+          "expected": "full_loop",
+          "choice": "full_loop",
+          "confidence": 1.0,
+          "status": "pass"
+        }
+      ],
+      "correct": 11,
+      "uncertain": 0,
+      "missed_escalations": 0,
+      "unnecessary_full_loop": 0,
+      "policy_agreement": 11
+    }
+  },
+  "candidate_pass": true,
+  "usage": {
+    "baseline": {
+      "input_tokens": 3683,
+      "output_tokens": 379
+    },
+    "candidate": {
+      "input_tokens": 4036,
+      "output_tokens": 379
+    }
+  },
+  "request_count": 2,
+  "policy_sha256": {
+    "baseline": "8d80b0b6e87186395307f4dc10a3db5dd5383e2caf67f5a3ee76d2ca9b500996",
+    "candidate": "bc6ac688c25a57922ae0140ebde450e54bf26d432824e9ba780fdb9d5b59a907"
+  },
+  "cases_sha256": "4ed6c0ec55bf470e028ae4e369c1e23f5f2a64ff182634dedff22df0b6d1b81a",
+  "baseline_ref": "2660db786e26aafc651cf9dd8b08efffb7deb717",
+  "evaluated_at": "2026-10-22T21:34:18.823202+00:00"
+}
