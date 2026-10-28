@@ -1,6 +1,6 @@
 ---
 name: lfg
-version: "2.5.0"
+version: "2.6.0"
 description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks. Use when the user says lfg or lets-fucking-go, or wants a written plan with per-step acceptance criteria.
 tags:
   - agent-workflows
@@ -17,18 +17,26 @@ Simple, cohesive, idiomatic changes win. Don't get clever. Nobody likes a clever
 
 ## Project artifacts bootstrap
 
-Before you touch anything, check if these four files exist. They're the project's shared memory. Every future agent, reviewer, or poor soul debugging this at midnight will inherit them:
+Run this pre-check before task research, definition, planning, or implementation, including fast-path work. The three core artifacts are architecture, feature map, and design. All three core artifacts are required for every task. Developer setup and the SRE runbook remain standing artifacts when the task touches those areas.
 
 | Artifact | Path (default) | What it holds |
 |---|---|---|
 | Architecture | `docs/architecture.md` | The system in project-specific terms: components, data flow, key decisions and why, trust boundaries, non-goals. |
 | Feature map | `docs/features-map.md` | One table row per feature: behaviour, where it lives (source paths), how it is proven (tests, checks). |
+| Design | `docs/design.md` | Product and interaction decisions: user flows, UI/UX conventions, accessibility, and visual constraints. For non-UI projects, document API/CLI interactions or other applicable design constraints and explain why visual design is not applicable. |
 | Developer setup | `docs/development.md` | What to install, how to run locally, test/lint/typecheck commands with expected results, branch/commit conventions. |
 | SRE runbook | `docs/sre.md` | How it is deployed, where logs/alarms/dashboards live, what breaks first, one remediation line per known failure mode. |
 
+### Required pre-check
+
+1. Resolve the three core paths in the table. Existing equivalent files are allowed only when you explicitly map each role to its actual path.
+2. Read each core artifact and verify it exists, is readable, and contains project-specific content rather than an empty file or placeholder. Check it against the current repository; repair stale sections needed by the task.
+3. If a core artifact is missing or inadequate, do only the repository inspection and clarification needed to bootstrap or repair these artifacts. This prerequisite work is not task research or implementation planning. Cite real source paths and verified commands. Mark unknown details `(unverified)`; do not invent requirements or design decisions. Ask the user when required information is unavailable.
+4. Record each resolved path and its `pass` or `blocked` status in the task's progress doc, or in the response for fast-path work. If any core artifact cannot be completed or verified, stop and report `blocked`. Do not start task research, planning, or coding until all three pass. A placeholder or an unverified required decision does not pass.
+
 Hard rules:
 
-- **Missing? Bootstrap first.** If one of these is missing and your task touches that area, research the codebase and write the missing doc before you write code. Cite real paths and commands you actually found. If you can't verify something, mark it `(unverified)` and say what would confirm it. No secrets, ever.
+- **Missing? Bootstrap first.** Core artifacts follow the required pre-check above regardless of task scope. If developer setup or the SRE runbook is missing and your task touches that area, inspect the codebase and write the missing doc before task research or planning. Cite real paths and commands you actually found. If you can't verify something, mark it `(unverified)` and say what would confirm it. No secrets, ever.
 - **Never fast-path past a missing, load-bearing artifact.** If a task depends on undocumented architecture, write the needed artifact in the same loop. Write the section you need, not a novel. Forty honest lines beats four hundred generic ones.
 - **Stale? Update in the same PR.** If your change breaks an existing doc (renamed component, new service, changed test command), fix the doc in the same PR and call it out in the report. Leave untouched sections alone.
 - **Accurate? Cite it.** Reference the artifact paths in your plan. If the repo already uses different names (like `ARCHITECTURE.md`), use those and map them to the roles above.
@@ -36,7 +44,7 @@ Hard rules:
 
 ## Triage first
 
-Use the full loop for broad, ambiguous, design-sensitive, or security-sensitive work. For changes that are small in risk and scope, use the fast path below. Do not decide based on line or file count alone. Several files can form one local change; one line can cross a trust boundary.
+Complete the project-artifact pre-check before choosing either path. Use the full loop for broad, ambiguous, design-sensitive, or security-sensitive work. For changes that are small in risk and scope, use the fast path below. Do not decide based on line or file count alone. Several files can form one local change; one line can cross a trust boundary.
 
 ### Fast-path eligibility
 
@@ -95,7 +103,7 @@ At every milestone (`begin`, `plan-approved`, `step-N-done`, `complete`, `blocke
 
 ## Workflow
 
-1. **Inspect.** Check your branch and working tree. Preserve unrelated changes and untracked files. Read project instructions and anything relevant to the request. Check the four standing artifacts, and bootstrap any that are missing and load-bearing. Append the `begin` handoff line.
+1. **Inspect.** Check your branch and working tree. Preserve unrelated changes and untracked files. Read project instructions and anything relevant to the request. Complete the project-artifact pre-check before task research or planning. Verify all three core artifacts, then check developer setup and the SRE runbook for any task-relevant gaps. Append the `begin` handoff line.
 
 2. **Define.** Before you write a single line of code, state the core concept in project-specific terms. What it actually means here. What it explicitly does NOT mean. Security and privacy implications. Measurable success criteria. If you can't define it, you can't build it.
 
@@ -121,7 +129,7 @@ If an epic crosses two or more context boundaries (think `db` / `service` / `api
 
 PR format: title and body in Conventional Commit form. `BREAKING CHANGE` footer when API contracts shift. `Closes #<issue>` / `Part of #<epic>` footers. List each slice's test commands and evidence paths so automated review can verify the gates. Per-slice gates are targeted evidence, but the full-suite rule in step 8 still applies once on the final slice's final step. Project-specific slice tables and PR checklists belong in that project's AGENTS.md, not here.
 
-**Bootstrap slices.** If you're bootstrapping missing standing artifacts and it's large enough to need review, make it its own slice/PR. Usually do this first, so later slices can cite it and the review establishes shared vocabulary. Task work can't land on a branch that leaves an artifact half-written. Either finish the section you need or skip the artifact and disclose why.
+**Bootstrap slices.** If you're bootstrapping missing standing artifacts and it's large enough to need review, make it its own slice/PR. Usually do this first, so later slices can cite it and the review establishes shared vocabulary. Task work can't land on a branch that leaves an artifact half-written. Finish the required sections before task work proceeds. Never skip a core artifact; if it cannot pass the pre-check, report the blocker.
 
 ## Commit cadence
 
