@@ -73,6 +73,17 @@ def _validate_candidate(root, text):
 
 
 @pytest.mark.parametrize("old,new,expected", [
+    ("| Architecture | `docs/architecture.md`", "| Architecture | `docs/arch.md`", "architecture prerequisite"),
+    ("| Feature map | `docs/features-map.md`", "| Feature map | `docs/features.md`", "feature-map prerequisite"),
+    ("| Design | `docs/design.md`", "| Design | `docs/ui.md`", "design prerequisite"),
+    ("before task research, definition, planning, or implementation", "before implementation", "pre-research artifact gate"),
+    ("All three core artifacts are required for every task", "Core artifacts are optional", "mandatory core artifacts"),
+    ("exists, is readable, and contains project-specific content rather than an empty file or placeholder", "exists", "artifact content verification"),
+    ("only the repository inspection and clarification needed to bootstrap or repair these artifacts", "all task research", "bounded artifact bootstrap"),
+    ("If any core artifact cannot be completed or verified, stop and report `blocked`", "Continue with missing artifacts", "blocked artifact gate"),
+    ("Record each resolved path and its `pass` or `blocked` status", "Record a summary", "artifact gate evidence"),
+    ("Complete the project-artifact pre-check before choosing either path", "Choose a path first", "fast-path prerequisite gate"),
+    ("Complete the project-artifact pre-check before task research or planning", "Check artifacts later", "inspect prerequisite gate"),
     ("# LFG", "# LFG\u2014", "zero em dashes"),
     ("## Commit cadence", "## Commit notes", "required sections"),
     ("8. **Validate.**", "8. **Check.**", "nine ordered workflow steps"),

@@ -39,6 +39,17 @@ def validate_contract(text):
     if re.search(r"(?:burned|after|exhausted)\s+(?:three|3)\s+repair attempts", text, re.IGNORECASE):
         errors.append("SKILL.md must not impose a global three-repair stopping rule.")
     rules = [
+        ("architecture prerequisite", "Project artifacts bootstrap", r"\| Architecture \| `docs/architecture\.md`"),
+        ("feature-map prerequisite", "Project artifacts bootstrap", r"\| Feature map \| `docs/features-map\.md`"),
+        ("design prerequisite", "Project artifacts bootstrap", r"\| Design \| `docs/design\.md`"),
+        ("pre-research artifact gate", "Project artifacts bootstrap", r"before task research, definition, planning, or implementation"),
+        ("mandatory core artifacts", "Project artifacts bootstrap", r"all three core artifacts are required for every task"),
+        ("artifact content verification", "Project artifacts bootstrap", r"exists, is readable, and contains project-specific content rather than an empty file or placeholder"),
+        ("bounded artifact bootstrap", "Project artifacts bootstrap", r"only the repository inspection and clarification needed to bootstrap or repair these artifacts"),
+        ("blocked artifact gate", "Project artifacts bootstrap", r"if any core artifact cannot be completed or verified, stop and report `blocked`"),
+        ("artifact gate evidence", "Project artifacts bootstrap", r"record each resolved path and its `pass` or `blocked` status"),
+        ("fast-path prerequisite gate", "Triage first", r"complete the project-artifact pre-check before choosing either path"),
+        ("inspect prerequisite gate", "Workflow", r"complete the project-artifact pre-check before task research or planning"),
         ("load-bearing artifacts before fast path", "Project artifacts bootstrap", r"never fast-path past a missing, load-bearing artifact"),
         ("risk-based triage", "Triage first", r"do not decide based on line or file count alone"),
         ("all-of eligibility", "Triage first", r"only when ALL of these are true"),
