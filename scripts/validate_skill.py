@@ -16,6 +16,8 @@ def validate_contract(text):
     errors = []
     if "\u2014" in text:
         errors.append("SKILL.md must contain zero em dashes.")
+    if re.search(r"\]\((?!https?://|#)[^)]+\)", text):
+        errors.append("SKILL.md must not contain repo-relative links that break when installed standalone.")
     headings = list(re.finditer(r"^## (.+)$", text, re.MULTILINE))
     sections = {
         match.group(1): text[match.end():headings[i + 1].start() if i + 1 < len(headings) else len(text)]
@@ -42,10 +44,15 @@ def validate_contract(text):
         ("architecture prerequisite", "Project artifacts bootstrap", r"\| Architecture \| `docs/architecture\.md`"),
         ("feature-map prerequisite", "Project artifacts bootstrap", r"\| Feature map \| `docs/features-map\.md`"),
         ("design prerequisite", "Project artifacts bootstrap", r"\| Design \| `docs/design\.md`"),
+        ("design not-needed option", "Project artifacts bootstrap", r"explicitly state that design is not needed"),
+        ("design not-needed passes", "Project artifacts bootstrap", r"project-specific statement in `docs/design\.md` explaining why design is not needed does pass"),
         ("pre-research artifact gate", "Project artifacts bootstrap", r"before task research, definition, planning, or implementation"),
         ("mandatory core artifacts", "Project artifacts bootstrap", r"all three core artifacts are required for every task"),
         ("artifact content verification", "Project artifacts bootstrap", r"exists, is readable, and contains project-specific content rather than an empty file or placeholder"),
         ("bounded artifact bootstrap", "Project artifacts bootstrap", r"only the repository inspection and clarification needed to bootstrap or repair these artifacts"),
+        ("parallel read-only artifact drafters", "Project artifacts bootstrap", r"one read-only artifact drafter in parallel per missing or inadequate core artifact"),
+        ("artifact drafter fallback", "Project artifacts bootstrap", r"otherwise inspect and draft them sequentially yourself"),
+        ("parent sole artifact writer", "Project artifacts bootstrap", r"parent agent remains the sole writer and gatekeeper"),
         ("blocked artifact gate", "Project artifacts bootstrap", r"if any core artifact cannot be completed or verified, stop and report `blocked`"),
         ("artifact gate evidence", "Project artifacts bootstrap", r"record each resolved path and its `pass` or `blocked` status"),
         ("fast-path prerequisite gate", "Triage first", r"complete the project-artifact pre-check before choosing either path"),
@@ -80,17 +87,24 @@ def validate_contract(text):
         ("plan before implementation", "Workflow", r"implementation does not start until"),
         ("plan rejects unresolved findings", "Workflow", r"review has no `fail` or unresolved `uncertain` findings"),
         ("stepwise evidence gate", "Workflow", r"advance only when everything passes"),
+        ("step handoff milestone", "Workflow", r"appending `step-N-done` to the handoff file"),
         ("implementation rejects unresolved findings", "Workflow", r"unmet required criteria, unresolved `uncertain` verdicts, or blocking rubric findings"),
         ("relative artifact links", "Artifacts", r"relative cross-links"),
         ("self-contained artifacts", "Artifacts", r"no external scripts, styles, or fetches"),
         ("artifact privacy", "Artifacts", r"never (?:put|store) secrets, keys, prompt contents, or raw command output"),
+        ("task artifact git hygiene", "Artifacts", r"if no convention exists, do not commit them into a PR without asking"),
         ("per-step failure escalation", "Workflow", r"same failure after (?:three|3) distinct replans of that step"),
+        ("blocked handoff milestone", "Workflow", r"mark the progress doc `blocked` and append `blocked` to the handoff file"),
         ("no mid-repair commits", "Workflow", r"(?:don't|never) commit while a step is `repairing`"),
         ("full-suite validation", "Workflow", r"full suite runs at least once on the final step"),
+        ("bounded test cleanup", "Workflow", r"prune duplicate, obsolete, or leftover debug tests introduced during the loop without weakening regression or invariant coverage"),
+        ("no test deletion to hide failure", "Workflow", r"never delete a test to make a failure disappear"),
+        ("scoped CI optimization hygiene", "Workflow", r"log broader repo-wide CI optimizations as follow-ups in the report"),
         ("generated-output protection", "Workflow", r"(?:never|do not) edit generated `build/`/`dist/` output"),
         ("slice test gates", "Multi-layer work: slice PRs by boundary", r"unit (?:plus|\+) E2E test gates"),
         ("slice commit convention", "Multi-layer work: slice PRs by boundary", r"title and body in conventional commit form"),
         ("commit authorization", "Commit cadence", r"(?:only commit|commit only) if the user asked for commits, a branch, or a PR"),
+        ("read-only artifact drafter role", "Subagent roles", r"\*\*Artifact drafter\*\*.*?never editing files"),
         ("read-only planner", "Subagent roles", r"never edits files or docs"),
         ("reviewer edit authorization", "Subagent roles", r"never edits unless explicitly asked"),
         ("uncertainty rule", "Subagent roles", r"`uncertain` is never a pass"),
@@ -159,7 +173,8 @@ else:
         for label, pattern in required.items():
             if not re.search(pattern, frontmatter, re.MULTILINE):
                 errors.append(f"Missing or invalid frontmatter field: {label}.")
-        if len(re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE).group(1)) > 220:
+        desc = re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE)
+        if desc and len(desc.group(1)) > 220:
             errors.append("Description must be 220 characters or fewer.")
 
 for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", ".gitignore"):
@@ -201,14 +216,13 @@ for needle in ("created", "last updated", "ISO 8601", "cross-link", "file://"):
 # actually implement them, not just be described in SKILL.md. This is the real
 # regression guard: a future agent that drops a feature from a generated doc
 # will fail here, not just when the requirement is deleted from the skill.
-import re as _re
 for artifact in ("lfg-skill-repo-prd.html", "lfg-skill-repo-progress.html"):
     path = root / "docs" / "development" / artifact
     if not path.is_file():
         errors.append(f"Missing example artifact: {artifact}.")
         continue
     html = path.read_text(encoding="utf-8")
-    if not _re.search(r"Last updated:\s*<code>\d{4}-\d{2}-\d{2}", html):
+    if not re.search(r"Last updated:\s*<code>\d{4}-\d{2}-\d{2}", html):
         errors.append(f"{artifact} missing ISO 8601 'last updated' timestamp.")
     if "Last updated" not in html and "created" not in html.lower():
         errors.append(f"{artifact} missing date/time header.")
@@ -219,7 +233,7 @@ for artifact in ("lfg-skill-repo-prd.html", "lfg-skill-repo-progress.html"):
     if "<canvas" in html and "requestAnimationFrame" not in html:
         errors.append(f"{artifact} has a <canvas> but no animation loop.")
     # self-contained: no external scripts / stylesheets / remote fetches
-    if _re.search(r"<script[^>]+src=|<link[^>]+href=|https?://[^\"'\s]+\.js", html):
+    if re.search(r"<script[^>]+src=|<link[^>]+href=|https?://[^\"'\s]+\.js", html):
         errors.append(f"{artifact} must be self-contained (no external scripts/remote fetches).")
 
 if errors:

@@ -62,7 +62,8 @@ def test_pr_slices_validator_passes():
 def contract_repo(tmp_path):
     copy = tmp_path / "lfg"
     shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns(
-        "__pycache__", ".pytest_cache", ".git", ".pi-subagents"))
+        "__pycache__", ".pytest_cache", ".git", ".pi-subagents",
+        "skills", ".venv", ".zenbin", "skills-lock.json"))
     return copy
 
 
@@ -76,15 +77,23 @@ def _validate_candidate(root, text):
     ("| Architecture | `docs/architecture.md`", "| Architecture | `docs/arch.md`", "architecture prerequisite"),
     ("| Feature map | `docs/features-map.md`", "| Feature map | `docs/features.md`", "feature-map prerequisite"),
     ("| Design | `docs/design.md`", "| Design | `docs/ui.md`", "design prerequisite"),
+    ("explicitly state that design is not needed", "always invent visual constraints", "design not-needed option"),
+    ("an explicit, project-specific statement in `docs/design.md` explaining why design is not needed does pass",
+     "a non-UI project must always block", "design not-needed passes"),
     ("before task research, definition, planning, or implementation", "before implementation", "pre-research artifact gate"),
     ("All three core artifacts are required for every task", "Core artifacts are optional", "mandatory core artifacts"),
     ("exists, is readable, and contains project-specific content rather than an empty file or placeholder", "exists", "artifact content verification"),
     ("only the repository inspection and clarification needed to bootstrap or repair these artifacts", "all task research", "bounded artifact bootstrap"),
+    ("one read-only artifact drafter in parallel per missing or inadequate core artifact",
+     "writer subagents without verification", "parallel read-only artifact drafters"),
+    ("otherwise inspect and draft them sequentially yourself", "fail if subagents are unavailable", "artifact drafter fallback"),
+    ("parent agent remains the sole writer and gatekeeper", "subagents write and approve files directly", "parent sole artifact writer"),
     ("If any core artifact cannot be completed or verified, stop and report `blocked`", "Continue with missing artifacts", "blocked artifact gate"),
     ("Record each resolved path and its `pass` or `blocked` status", "Record a summary", "artifact gate evidence"),
     ("Complete the project-artifact pre-check before choosing either path", "Choose a path first", "fast-path prerequisite gate"),
     ("Complete the project-artifact pre-check before task research or planning", "Check artifacts later", "inspect prerequisite gate"),
     ("# LFG", "# LFG\u2014", "zero em dashes"),
+    ("end-to-end improvement.", "end-to-end improvement. See [protocol](docs/evaluation/fast-path.md).", "repo-relative links"),
     ("## Commit cadence", "## Commit notes", "required sections"),
     ("8. **Validate.**", "8. **Check.**", "nine ordered workflow steps"),
     ("Stop when the acceptance criteria are met or a blocker needs the user.",
@@ -127,21 +136,32 @@ def _validate_candidate(root, text):
     ("Implementation does not start until", "Implementation starts immediately", "plan before implementation"),
     ("review has no `fail` or unresolved `uncertain` findings", "review can have unresolved findings", "plan rejects unresolved findings"),
     ("advance only when everything passes", "advance before checks pass", "stepwise evidence gate"),
+    ("appending `step-N-done` to the handoff file", "skipping handoff updates", "step handoff milestone"),
     ("Unmet required criteria, unresolved `uncertain` verdicts, or blocking rubric findings", "Only optional comments", "implementation rejects unresolved findings"),
     ("If the key is missing", "If the key is present", "missing-key fallback"),
     ("relative cross-links", "cross-links", "relative artifact links"),
     ("no external scripts, styles, or fetches", "external styles are allowed", "self-contained artifacts"),
     ("Never put secrets, keys, prompt contents, or raw command output",
      "Put secrets, keys, prompt contents, or raw command output", "artifact privacy"),
+    ("If no convention exists, do not commit them into a PR without asking.",
+     "Always commit per-task artifacts into every PR.", "task artifact git hygiene"),
     ("same failure after three distinct replans of that step",
      "any failure after three attempts", "per-step failure escalation"),
+    ("mark the progress doc `blocked` and append `blocked` to the handoff file",
+     "stop without recording blocked status", "blocked handoff milestone"),
     ("Don't commit while a step is `repairing`", "Commit while a step is `repairing`", "no mid-repair commits"),
     ("full suite runs at least once on the final step", "targeted checks are sufficient", "full-suite validation"),
+    ("prune duplicate, obsolete, or leftover debug tests introduced during the loop without weakening regression or invariant coverage",
+     "remove any slow tests across the repo", "bounded test cleanup"),
+    ("never delete a test to make a failure disappear", "delete failing tests to pass", "no test deletion to hide failure"),
+    ("log broader repo-wide CI optimizations as follow-ups in the report",
+     "rewrite all repo CI workflows during every feature task", "scoped CI optimization hygiene"),
     ("Never edit generated `build/`/`dist/` output", "Edit generated `build/`/`dist/` output", "generated-output protection"),
     ("unit plus E2E test gates", "unit test gates", "slice test gates"),
     ("title and body in Conventional Commit form", "free-form title and body", "slice commit convention"),
     ("Only commit if the user asked for commits, a branch, or a PR",
      "Commit whenever work is done", "commit authorization"),
+    ("marking unknowns `(unverified)`, and never editing files", "marking unknowns `(unverified)`, and editing files directly", "read-only artifact drafter role"),
     ("Never edits files or docs", "May edit files or docs", "read-only planner"),
     ("Never edits unless explicitly asked", "May edit at will", "reviewer edit authorization"),
     ("`uncertain` is never a pass", "`uncertain` counts as a pass", "uncertainty rule"),
@@ -224,3 +244,12 @@ def test_contract_does_not_require_old_size_limits():
     assert "30 lines" not in triage and "3 files" not in triage
     assert "no UX/copy/architecture impact" not in triage
     assert _run_validator("validate_skill.py").returncode == 0
+
+
+def test_validator_reports_missing_description_cleanly(contract_repo):
+    text = SKILL.read_text(encoding="utf-8")
+    without_desc = re.sub(r"^description:.*\n", "", text, count=1, flags=re.MULTILINE)
+    result = _validate_candidate(contract_repo, without_desc)
+    assert result.returncode == 1
+    assert "Missing or invalid frontmatter field: description." in result.stdout
+    assert "Traceback" not in result.stderr

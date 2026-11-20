@@ -1,6 +1,6 @@
 ---
 name: lfg
-version: "2.6.0"
+version: "2.7.0"
 description: Bounded research, planning, implementation, validation, and review loop for complex coding tasks. Use when the user says lfg or lets-fucking-go, or wants a written plan with per-step acceptance criteria.
 tags:
   - agent-workflows
@@ -23,7 +23,7 @@ Run this pre-check before task research, definition, planning, or implementation
 |---|---|---|
 | Architecture | `docs/architecture.md` | The system in project-specific terms: components, data flow, key decisions and why, trust boundaries, non-goals. |
 | Feature map | `docs/features-map.md` | One table row per feature: behaviour, where it lives (source paths), how it is proven (tests, checks). |
-| Design | `docs/design.md` | Product and interaction decisions: user flows, UI/UX conventions, accessibility, and visual constraints. For non-UI projects, document API/CLI interactions or other applicable design constraints and explain why visual design is not applicable. |
+| Design | `docs/design.md` | Product and interaction decisions: user flows, UI/UX conventions, accessibility, and visual constraints. If design is not needed for the project (for example, a backend, library, or CLI with no UI surface), explicitly state that design is not needed, explain why in project-specific terms, and note any applicable API/CLI or interface constraints. |
 | Developer setup | `docs/development.md` | What to install, how to run locally, test/lint/typecheck commands with expected results, branch/commit conventions. |
 | SRE runbook | `docs/sre.md` | How it is deployed, where logs/alarms/dashboards live, what breaks first, one remediation line per known failure mode. |
 
@@ -31,8 +31,8 @@ Run this pre-check before task research, definition, planning, or implementation
 
 1. Resolve the three core paths in the table. Existing equivalent files are allowed only when you explicitly map each role to its actual path.
 2. Read each core artifact and verify it exists, is readable, and contains project-specific content rather than an empty file or placeholder. Check it against the current repository; repair stale sections needed by the task.
-3. If a core artifact is missing or inadequate, do only the repository inspection and clarification needed to bootstrap or repair these artifacts. This prerequisite work is not task research or implementation planning. Cite real source paths and verified commands. Mark unknown details `(unverified)`; do not invent requirements or design decisions. Ask the user when required information is unavailable.
-4. Record each resolved path and its `pass` or `blocked` status in the task's progress doc, or in the response for fast-path work. If any core artifact cannot be completed or verified, stop and report `blocked`. Do not start task research, planning, or coding until all three pass. A placeholder or an unverified required decision does not pass.
+3. If a core artifact is missing or inadequate, do only the repository inspection and clarification needed to bootstrap or repair these artifacts. This prerequisite work is not task research or implementation planning. When subagents are available, you may launch one read-only artifact drafter in parallel per missing or inadequate core artifact (up to three); otherwise inspect and draft them sequentially yourself. Each drafter returns text only (never edits files), cites real source paths and verified commands, marks unknown details `(unverified)`, and never invents requirements or design decisions. The parent agent remains the sole writer and gatekeeper: reconcile terminology and cross-references across drafts, verify claims against the repository, write the files, and ask the user when required information is unavailable.
+4. Record each resolved path and its `pass` or `blocked` status in the task's progress doc, or in the response for fast-path work (plus which drafter agents were used, if any). If any core artifact cannot be completed or verified, stop and report `blocked`. Do not start task research, planning, or coding until all three pass. A placeholder or an unverified required decision does not pass; an explicit, project-specific statement in `docs/design.md` explaining why design is not needed does pass.
 
 Hard rules:
 
@@ -52,7 +52,7 @@ Use fast path only when ALL of these are true:
 
 - The requested outcome and expected behavior are clear and checkable without substantial discovery or an unresolved design decision.
 - The change is localized and reasonably reversible. It does not alter architecture, shared contracts, or behavior across unrelated areas.
-- The change does not touch a security or trust boundary: authentication, authorization, privilege or process boundaries, input validation, path validation, deserialization, subprocess or shell execution, secret handling, approvals, IPC/preload bridges, browser risk routing, or untrusted Markdown/file rendering.
+- The change does not touch a security or trust boundary: authentication, authorization, privilege or process boundaries, input validation, path validation, deserialization, subprocess or shell execution, secret handling, approvals, IPC/bridge boundaries, cross-origin/routing boundaries, or untrusted Markdown/file rendering.
 - There is a concrete acceptance check: a focused test, a project check, or an observable manual check.
 
 A specified, contained UI or copy change can qualify. An open-ended redesign cannot. Several files do not disqualify a change if they form one localized, low-risk change. Never fast-path past a missing, load-bearing artifact; the bootstrap rules still apply. Fast path does not bypass approvals or required project checks. If Jev is available, run its triage gate first.
@@ -64,7 +64,7 @@ A specified, contained UI or copy change can qualify. An open-ended redesign can
 3. Make the smallest coherent change.
 4. Run the relevant focused test or check. Add broader validation when shared behavior or project invariants require it. The full-suite rule in Workflow step 8 still applies to fast path.
 5. Review the diff against the request and acceptance check; confirm no unrelated changes slipped in.
-6. Report that you used fast path, what changed, what you checked, actual results, and anything not checked. Never claim an unrun or failing check passed. If no useful automated check exists, record the manual check and its actual result.
+6. Report that you used fast path, the resolved core artifact paths and pre-check status, what changed, what you checked, actual results, and anything not checked. Never claim an unrun or failing check passed. If no useful automated check exists, record the manual check and its actual result.
 
 Skip task PRD/progress HTML, planner, and plan-review gate. Standing project-artifact requirements still apply.
 
@@ -86,7 +86,7 @@ Evaluate work quality AND workflow choice. Speed alone is not a pass. Compare ba
 
 For each task, record pass/fail/uncertain for correct routing and escalation, intent plus a checkable result stated before edits, acceptance criteria met, relevant checks actually run and accurately reported, and diff review for request coverage and unrelated changes. Uncertain is not a pass. Track quality failures, missed escalations, unnecessary full-loop use, and elapsed time or tool calls. A speed gain fails the rubric if it skips a needed check or ships an incorrect change.
 
-Static contract tests protect these instructions; routing-only model checks test policy interpretation. Neither proves completed-task quality or speed. Use actual isolated task runs with acceptance evidence before claiming end-to-end improvement. See [the evaluation protocol](docs/evaluation/fast-path.md) for a repeatable comparison.
+Static contract tests protect these instructions; routing-only model checks test policy interpretation. Neither proves completed-task quality or speed. Use actual isolated task runs on disposable checkouts with pinned model/tooling and independent acceptance evidence before claiming end-to-end improvement.
 
 ## Artifacts
 
@@ -101,6 +101,8 @@ Rules for these docs: self-contained HTML, inline CSS/JS only, no external scrip
 
 At every milestone (`begin`, `plan-approved`, `step-N-done`, `complete`, `blocked`), append one timestamped line to `docs/<task-slug>-handoff.md`: task slug, step, status, evidence pointer. When you come back after a break or a context compaction, recover state from the handoff file and the docs. Don't replay chat. The fast path can skip this. Never put secrets, keys, prompt contents, or raw command output in artifacts. Summarize instead.
 
+Unlike standing project artifacts (which stay committed in the repo), follow repository conventions for whether per-task PRD, progress, and handoff files are committed, placed in a gitignored directory, or excluded from the final PR. If no convention exists, do not commit them into a PR without asking.
+
 ## Workflow
 
 1. **Inspect.** Check your branch and working tree. Preserve unrelated changes and untracked files. Read project instructions and anything relevant to the request. Complete the project-artifact pre-check before task research or planning. Verify all three core artifacts, then check developer setup and the SRE runbook for any task-relevant gaps. Append the `begin` handoff line.
@@ -111,15 +113,15 @@ At every milestone (`begin`, `plan-approved`, `step-N-done`, `complete`, `blocke
 
 4. **Plan gate.** Have the plan reviewed (plan reviewer subagent, or do it yourself). Implementation does not start until: every step has acceptance criteria plus required evidence; a definition of done exists; requirements and open questions are addressed; both docs exist; and the review has no `fail` or unresolved `uncertain` findings (including the Jev plan gate, if available). Then append `plan-approved`.
 
-5. **Implement stepwise.** For each step: read the PRD and progress doc, implement ONLY that step, gather its evidence, update the progress doc (files changed, validation output, criterion status), evaluate against every criterion (plus the Jev evidence gate, if available), and advance only when everything passes. `uncertain` is not a pass. Stop and fix.
+5. **Implement stepwise.** For each step: read the PRD and progress doc, implement ONLY that step, gather its evidence, update the progress doc (files changed, validation output, criterion status), evaluate against every criterion (plus the Jev evidence gate, if available), and advance only when everything passes, appending `step-N-done` to the handoff file. `uncertain` is not a pass. Stop and fix.
 
-6. **Repair boundedly.** When a criterion fails (or taste/originality scores below 4 on design work): diagnose from the evidence first, record the diagnosis, and come up with a revised approach. Never just retry the same fix and hope. The Jev repair gate, if available, checks exactly this. Escalate to the user only on a true blocker: missing dependency or permission, an ambiguous requirement, or the same failure after three distinct replans of that step. Don't commit while a step is `repairing`.
+6. **Repair boundedly.** When a criterion fails (or taste/originality scores below 4 on design work): diagnose from the evidence first, record the diagnosis, and come up with a revised approach. Never just retry the same fix and hope. The Jev repair gate, if available, checks exactly this. Escalate to the user only on a true blocker: missing dependency or permission, an ambiguous requirement, or the same failure after three distinct replans of that step. When escalating, mark the progress doc `blocked` and append `blocked` to the handoff file. Don't commit while a step is `repairing`.
 
 7. **Implementation gate.** Review the actual diff (implementation reviewer subagent, or manually) against the PRD and progress docs. Re-run the Jev evidence gate on the final evidence if available. Unmet required criteria, unresolved `uncertain` verdicts, or blocking rubric findings mean you repair the failing step and re-gate. No exceptions.
 
-8. **Validate.** Run the project's canonical check. Find it in package.json scripts or AGENTS.md (stuff like `npm run check`, `cargo check`, `pytest -q`). Targeted checks are fine for iterating inside a step, but the full suite runs at least once on the final step. Don't judge by change size alone. Repos have cross-cutting invariant tests (schema checks, source pins, whole-tree lint) that break when repo state changes, even if your feature-local tests all pass. A new table, route, or provider row can trip these. If the full suite is genuinely too slow, run the invariant/meta-test files for every artifact kind you touched, and disclose in the report which invariant surfaces you left uncovered. Fix findings and re-run until green.
+8. **Validate.** Run the project's canonical check. Find it in package.json scripts or AGENTS.md (stuff like `npm run check`, `cargo check`, `pytest -q`). Targeted checks are fine for iterating inside a step, but the full suite runs at least once on the final step. Don't judge by change size alone. Repos have cross-cutting invariant tests (schema checks, source pins, whole-tree lint) that break when repo state changes, even if your feature-local tests all pass. A new table, route, or provider row can trip these. If the full suite is genuinely too slow, run the invariant/meta-test files for every artifact kind you touched, and disclose in the report which invariant surfaces you left uncovered. Before final validation, prune duplicate, obsolete, or leftover debug tests introduced during the loop without weakening regression or invariant coverage (never delete a test to make a failure disappear), and check touched suites for obvious test-runtime waste or CI duplication. Fix task-scoped waste directly and re-run validation; log broader repo-wide CI optimizations as follow-ups in the report rather than making unrelated CI edits. Fix findings and re-run until green.
 
-9. **Report.** Keep it concise. Definition you used, what you actually built, files changed, validation run and result. State the scope explicitly: full suite with counts, or named targeted checks plus any uncovered invariant surfaces. Note reviewer findings you addressed, residual risks, and follow-ups. Say what happened to the standing artifacts: bootstrapped (which ones), updated (which sections), or cited (paths). Append the `complete` handoff line. Note durable decisions so the next session isn't starting from zero.
+9. **Report.** Keep it concise. Definition you used, what you actually built, files changed, validation run and result. State the scope explicitly: full suite with counts, or named targeted checks plus any uncovered invariant surfaces. Note reviewer findings you addressed, residual risks, and follow-ups, including any repo-wide CI or test-runtime optimizations you deferred. Say what happened to the standing artifacts: bootstrapped (which ones), updated (which sections), or cited (paths). Append the `complete` handoff line. Note durable decisions so the next session isn't starting from zero.
 
 Never edit generated `build/`/`dist/` output. Edit sources and rebuild.
 
@@ -137,11 +139,13 @@ Only commit if the user asked for commits, a branch, or a PR. Otherwise leave th
 
 ## Subagent roles
 
-If your harness has subagents, use three advisory roles. If not, perform each role yourself and say so. List available agents first. Prefer read-only or analysis agents. Pass the role's directives in the task text. For reviewers, prefer fork/snapshot context so they judge a stable state. Note which agent you picked in the progress doc. Subagents are critics, never owners.
+If your harness has subagents, use the advisory roles below. If not, perform each role yourself and say so. List available agents first. Prefer read-only or analysis agents. Pass the role's directives in the task text. For reviewers, prefer fork/snapshot context so they judge a stable state. Note which agent you picked in the progress doc. Subagents are critics and drafters, never owners.
+
+- **Artifact drafter** (pre-check, optional parallel fan-out): read-only repository inspector launched at most once per missing or inadequate core artifact (`architecture`, `features-map`, `design`). Returns a concise, project-specific draft in text only, citing real paths and verified commands, marking unknowns `(unverified)`, and never editing files. For `docs/design.md`, may draft an explicit project-specific rationale that design is not needed. The parent reconciles, verifies, and writes the files.
 
 - **Planner** (step 3): skeptical product-minded architect. Returns text only. A step plan with per-step acceptance criteria and required evidence, risks, non-goals, taste/originality criteria where relevant. Never edits files or docs.
 - **Plan reviewer** (step 4): strict gatekeeper over the PRD. Marks each area `pass` / `fail` / `uncertain`: project-specific definition, definition of done, goal coverage, research evidence, open questions resolved-or-blocked, criteria and evidence per step, validation commands, taste criteria. Missing required items equals `fail`, which means implementation is blocked.
-- **Implementation reviewer** (step 7): judges the diff against PRD and progress. Per step, marks every criterion `pass` / `fail` / `uncertain` with evidence, scores taste/originality 1 to 5, and lists blocking fixes. Returns findings only. Never edits unless explicitly asked.
+- **Implementation reviewer** (step 7): judges the diff against PRD and progress. Per step, marks every criterion `pass` / `fail` / `uncertain` with evidence, scores taste/originality 1 to 5, flags redundant or overly slow tests introduced in the diff, and lists blocking fixes. Returns findings only. Never edits unless explicitly asked.
 
 **`uncertain` is never a pass.** At every gate, whoever is performing the role resolves each `uncertain` before the gate opens. Gather stronger evidence and re-judge, or rule `pass` / `fail` with a written reason in the progress doc. If only the user can settle it, that's a blocker. Record it and escalate. Don't advance around it.
 
@@ -159,7 +163,7 @@ Why Jev matters: the author and reviewer subagents are usually the same model, s
 
 One request per gate. Ask all of that gate's questions together over one small `state`:
 
-- **Triage gate** (before any fast path). State: the user's request and the files to be touched. One Noul per security/trust-boundary category from Triage ("does the change touch …"), one for architecture/shared-contract or unrelated-area impact, and one for unresolved design decisions or unclear acceptance checks. A specified, contained UI or copy change with a concrete check is not an unresolved design decision. Use `false` criteria for such changes and mechanical fixes; use `true` criteria for open-ended redesigns. Missing load-bearing artifacts still require the full loop. Any answer ≥ 0.3 means full loop. Jev can force the full loop, never the fast path.
+- **Triage gate** (before any fast path). State: the user's request and the files to be touched. One Noul (yes/no probability question) per security/trust-boundary category from Triage ("does the change touch …"), one for architecture/shared-contract or unrelated-area impact, and one for unresolved design decisions or unclear acceptance checks. A specified, contained UI or copy change with a concrete check is not an unresolved design decision. Use `false` criteria for such changes and mechanical fixes; use `true` criteria for open-ended redesigns. Missing load-bearing artifacts still require the full loop. Any answer ≥ 0.3 means full loop. Jev can force the full loop, never the fast path.
 - **Plan gate** (step 4). State: `{requirements: [...], steps: [{id, criteria, evidence}]}`. Per step, two Nouls: is every criterion in `steps[i].criteria` an observable outcome rather than an intention; does `steps[i].evidence` name a concrete, checkable artifact. Per requirement, a Choice over the step ids plus `none`: which step covers `requirements[j]`. A Noul below 0.7 means `uncertain`, resolved under the same rule. `none` means `fail` on goal coverage.
 - **Evidence gate** (steps 5 and 7). State: `{criteria: [{criterion, evidence}]}`, where evidence is the summarized artifact itself (command and result line, diff summary), not your claim that it passed. Per criterion, a Choice: `proves` / `contradicts` / `insufficient`. `proves` with confidence ≥ 0.8 corroborates the pass. `contradicts` means `fail`. Anything else means `uncertain`, resolved under the `uncertain` rule in Subagent roles (re-ask Jev after gathering stronger evidence).
 - **Repair gate** (step 6). State: `{failure, previous_approach, revised_approach}`. Noul: is `revised_approach` a materially different approach rather than the same fix retried with minor changes. Below 0.5 means replan before spending the attempt.
